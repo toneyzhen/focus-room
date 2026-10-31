@@ -1806,7 +1806,6 @@
   var openTimePickerSelects = 0;
   var lastRenderedMinute = null;
   var MISSED = -1e6; // sorts ahead of any real overdue time
-  var SNOOZE_MINUTES = 10;
 
   // Rebuilding the reminder list (as the once-a-second tick does) replaces
   // every row's time-picker <select> elements — which yanks focus away and
@@ -2005,10 +2004,7 @@
   // and then unchecked again) until it's confirmed complete; a repeating
   // reminder only starts counting toward its *next* occurrence once the
   // day rolls over and today's checkmark resets.
-  function isSnoozed(r) { return r.snoozedUntil > Date.now(); }
-
   function sortKey(r) {
-    if (isSnoozed(r)) return Math.ceil((r.snoozedUntil - Date.now()) / 60000);
     // A one-time reminder rings once, so after the day it rang it has nothing left to count down to.
     if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayKey()) return MISSED;
     return rawMinutesDiff(r.time);
@@ -2028,27 +2024,12 @@
     return 'in ' + h + 'h' + (m ? ' ' + m + 'm' : '');
   }
 
-  function describeReminder(r) {
-    return (isSnoozed(r) ? 'snoozed, ' : '') + describeCountdown(sortKey(r));
-  }
-
-  function clearToast(r) {
-    document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
-  }
-
   function setCompleted(r, completed) {
     r.completed = completed;
     r.completedDateKey = completed ? todayKey() : null;
-    r.snoozedUntil = null;
-    if (completed) clearToast(r);
-    saveReminders();
-    render();
-    updateNextReminder();
-  }
-
-  function snooze(r) {
-    r.snoozedUntil = Date.now() + SNOOZE_MINUTES * 60000;
-    clearToast(r);
+    if (completed) {
+      document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
+    }
     saveReminders();
     render();
     updateNextReminder();
@@ -2112,7 +2093,6 @@
       function commitRowTime() {
         r.time = timePicker.getValue();
         r.lastFiredKey = null;
-        r.snoozedUntil = null;
         if (!r.repeat) { r.completed = false; }
         saveReminders();
         render();
@@ -2179,10 +2159,10 @@
         pill.textContent = describeCountdown(key);
       } else if (r.id === nextId) {
         pill.className = 'pill next';
-        pill.textContent = describeReminder(r);
+        pill.textContent = describeCountdown(key);
       } else {
         pill.className = 'pill';
-        pill.textContent = describeReminder(r);
+        pill.textContent = describeCountdown(key);
       }
 
       var actions = document.createElement('div');
@@ -2355,15 +2335,6 @@
       }
     });
 
-    // A snooze that ran out rings again, even if the page was closed when it did.
-    reminders.forEach(function (r) {
-      if (!r.snoozedUntil || isSnoozed(r)) return;
-      r.snoozedUntil = null;
-      changed = true;
-      lastRenderedMinute = null; // its pill has to go back to overdue now
-      if (!r.completed) fireReminder(r);
-    });
-
     reminders.forEach(function (r) {
       // shortcut: exact-minute match, so a heavily throttled background tab can miss one; compare against the last tick if that shows up.
       if (r.time !== hhmm || r.completed) return;
@@ -2423,39 +2394,37 @@
     var anyOverdue = overdue.length > 0;
     reminderBellEl.classList.toggle('expanded', anyOverdue);
     nextReminderEl.textContent = anyOverdue ? overdue.length + ' overdue' : (next ? next.label.split('\n')[0] : 'Reminders');
-    nextCountdownEl.textContent = (next && !anyOverdue) ? describeReminder(next) : '';
+    nextCountdownEl.textContent = (next && !anyOverdue) ? describeCountdown(key) : '';
     nextCountdownEl.classList.toggle('overdue', key < 0);
 
     // This runs every second, and rebuilding the buttons that often would lose clicks and focus.
     var shown = overdue.concat(anyOverdue && upcoming ? [upcoming] : []);
-    var signature = JSON.stringify(shown.map(function (r) { return [r.id, r.label, describeReminder(r)]; }));
+    var signature = JSON.stringify(shown.map(function (r) { return [r.id, r.label, describeCountdown(sortKey(r))]; }));
     if (signature === lastBellSignature) return;
     lastBellSignature = signature;
 
     var active = document.activeElement;
     var activeItem = active && active.matches(':focus-visible') && active.closest('.overdue-item');
     var refocusId = activeItem ? activeItem.dataset.id : null;
-    var refocusClass = activeItem ? active.classList[1] : null;
 
     overdueListEl.innerHTML = '';
-    overdue.forEach(function (r) { addBellItem(r, true); });
+    overdue.forEach(addBellItem);
     if (anyOverdue && upcoming) {
       var heading = document.createElement('span');
       heading.className = 'next-up-heading';
       heading.textContent = 'Next up';
       overdueListEl.appendChild(heading);
-      addBellItem(upcoming, false);
+      addBellItem(upcoming);
     }
 
     if (refocusId) {
       overdueListEl.querySelectorAll('.overdue-item').forEach(function (item) {
-        var btn = item.dataset.id === refocusId && item.querySelector('.' + refocusClass);
-        if (btn) btn.focus();
+        if (item.dataset.id === refocusId) item.querySelector('.bell-btn').focus();
       });
     }
   }
 
-  function addBellItem(r, canSnooze) {
+  function addBellItem(r) {
     var item = document.createElement('span');
     item.className = 'overdue-item';
     item.dataset.id = r.id;
@@ -2466,29 +2435,22 @@
     meta.className = 'bell-item-meta';
     var when = document.createElement('span');
     when.className = 'next-countdown';
-    when.textContent = describeReminder(r);
+    when.textContent = describeCountdown(sortKey(r));
     meta.appendChild(when);
-    meta.appendChild(bellButton('bell-check', '✓', 'Mark ' + r.label + ' as completed', function () { setCompleted(r, true); }));
-    if (canSnooze) {
-      meta.appendChild(bellButton('bell-snooze', 'Snooze ' + SNOOZE_MINUTES + 'm', 'Snooze ' + r.label + ' for ' + SNOOZE_MINUTES + ' minutes', function () { snooze(r); }));
-    }
+    var check = document.createElement('button');
+    check.type = 'button';
+    check.className = 'bell-btn';
+    check.textContent = '✓';
+    check.setAttribute('aria-label', 'Mark ' + r.label + ' as completed');
+    check.addEventListener('click', function () {
+      var usedKeyboard = check.matches(':focus-visible'); // this button is about to be removed
+      setCompleted(r, true);
+      if (usedKeyboard) drawerToggle.focus();
+    });
+    meta.appendChild(check);
     item.appendChild(label);
     item.appendChild(meta);
     overdueListEl.appendChild(item);
-  }
-
-  function bellButton(extraClass, text, ariaLabel, onClick) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bell-btn ' + extraClass;
-    btn.textContent = text;
-    btn.setAttribute('aria-label', ariaLabel);
-    btn.addEventListener('click', function () {
-      var usedKeyboard = btn.matches(':focus-visible'); // this button is about to be replaced
-      onClick();
-      if (usedKeyboard) drawerToggle.focus();
-    });
-    return btn;
   }
 
   document.addEventListener('pointerdown', ensureAudio, { once: true });
