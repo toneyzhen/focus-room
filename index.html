@@ -293,13 +293,34 @@
     font-size:18px; line-height:1; padding:3px 8px;
   }
   .todo-delete:hover{ color:var(--amber-soft); }
+  .todo-clear{ align-self:flex-end; }
 
   .bottom{
     width:100%; max-width:1100px; display:flex; align-items:flex-end; justify-content:center;
     margin-top:auto;
   }
   .stats-bar{
-    display:flex; align-items:stretch; gap:0; padding:6px; border-radius:16px;
+    display:flex; flex-direction:column; max-width:100%; padding:6px; border-radius:16px;
+  }
+  .stats-row{ display:flex; align-items:stretch; }
+  .goal-row{
+    display:flex; align-items:center; gap:10px; padding:8px 16px;
+    border-bottom:1px solid var(--glass-border);
+  }
+  .goal-row label{ font-size:11px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.07em; white-space:nowrap; }
+  .goal-row progress{
+    flex:1; min-width:40px; height:6px; border:none; border-radius:999px; overflow:hidden;
+    appearance:none; -webkit-appearance:none; background:rgba(245,234,212,0.12);
+  }
+  .goal-row progress::-webkit-progress-bar{ background:transparent; }
+  .goal-row progress::-webkit-progress-value{ background:var(--amber); }
+  .goal-row progress::-moz-progress-bar{ background:var(--amber); }
+  .goal-count, .goal-row input{
+    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; font-variant-numeric:tabular-nums;
+    color:var(--cream); white-space:nowrap;
+  }
+  .goal-row input{
+    width:44px; background:transparent; border:none; border-bottom:1px solid var(--glass-border); text-align:center;
   }
   .stat{
     display:flex; align-items:center; gap:10px; padding:10px 22px;
@@ -314,32 +335,41 @@
 
   @media (max-width: 640px){
     .window{ display:none; }
-    .stats-bar{ flex-wrap:wrap; }
+    .stats-row{ flex-wrap:wrap; }
   }
 
   /* ---------- REMINDERS (from Reminder Bell, nested so its bare h2/label/input rules can't reach the room) ---------- */
+  .reminder-bell{ max-width:min(100%,360px); border-radius:999px; }
+  .reminder-bell:hover{ border-color:rgba(245,234,212,0.3); }
   .reminder-toggle{
-    display:flex; align-items:center; gap:8px; max-width:min(100%,360px);
-    padding:10px 18px; border-radius:999px; color:var(--cream); font-size:14px; cursor:pointer;
+    display:flex; align-items:center; gap:8px; width:100%;
+    padding:10px 18px; background:none; border:none; border-radius:inherit;
+    color:var(--cream); font-size:14px; text-align:left; cursor:pointer;
   }
-  .reminder-toggle:hover{ border-color:rgba(245,234,212,0.3); }
   /* Out of flow beside the timer, so it doesn't push the centred hero down. */
   @media (min-width: 641px){
-    .reminder-toggle{ position:absolute; top:100%; left:0; margin-top:12px; max-width:min(300px,34vw); }
+    .reminder-bell{ position:absolute; top:100%; left:0; margin-top:12px; max-width:min(300px,34vw); }
   }
   .next-reminder{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .next-countdown{ flex-shrink:0; color:var(--amber-soft); }
   .next-countdown.overdue{ color:#f0a08a; }
-  .reminder-toggle.expanded{ flex-wrap:wrap; border-radius:18px; }
-  .reminder-toggle.expanded .next-reminder{ color:#f0a08a; }
+  .reminder-bell.expanded{ border-radius:18px; }
+  .reminder-bell.expanded .reminder-toggle .next-reminder{ color:#f0a08a; }
   /* shortcut: a very long list runs down over the task card on narrow windows, cap it with an inner scroll if that shows up. */
-  .overdue-list{ flex-basis:100%; min-width:0; display:flex; flex-direction:column; gap:8px; text-align:left; }
+  .overdue-list{ min-width:0; display:flex; flex-direction:column; gap:8px; padding:0 18px 12px; font-size:14px; }
   .overdue-list:empty{ display:none; }
   .overdue-item{ display:block; min-width:0; }
   .overdue-item .next-reminder{ display:block; color:var(--cream); white-space:pre-wrap; overflow-wrap:anywhere; }
   .overdue-item .next-countdown{ display:block; font-size:12px; color:#f0a08a; }
   .next-up-heading{ padding-top:8px; border-top:1px solid var(--glass-border); color:var(--amber-soft); }
   .next-up-heading ~ .overdue-item .next-countdown{ color:var(--amber-soft); }
+  .bell-item-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:3px; }
+  .bell-item-meta .next-countdown{ flex:1; min-width:0; }
+  .bell-btn{
+    padding:3px 9px; background:none; border:1px solid var(--glass-border); border-radius:999px;
+    color:var(--cream); font-size:12px; cursor:pointer;
+  }
+  .bell-btn:hover{ border-color:var(--amber); color:var(--amber-soft); }
 
   .bell{
     color-scheme:dark;
@@ -988,12 +1018,14 @@
       <span class="time" id="clockTime">--:--</span>
       <span class="date" id="clockDate">—</span>
     </div>
-    <button class="reminder-toggle glass" id="drawerToggle" type="button" aria-expanded="false" aria-controls="drawer">
-      <span aria-hidden="true">🔔</span>
-      <span class="next-reminder" id="nextReminder">Reminders</span>
-      <span class="next-countdown" id="nextCountdown"></span>
-      <span class="overdue-list" id="overdueList"></span>
-    </button>
+    <div class="reminder-bell glass" id="reminderBell">
+      <button class="reminder-toggle" id="drawerToggle" type="button" aria-expanded="false" aria-controls="drawer">
+        <span aria-hidden="true">🔔</span>
+        <span class="next-reminder" id="nextReminder">Reminders</span>
+        <span class="next-countdown" id="nextCountdown"></span>
+      </button>
+      <div class="overdue-list" id="overdueList"></div>
+    </div>
   </div>
 
   <div class="hero">
@@ -1024,11 +1056,19 @@
         </div>
       </form>
       <ul class="todo-list" id="todoList"></ul>
+      <button class="link-btn todo-clear" id="todoClear" type="button" hidden></button>
     </div>
   </div>
 
   <div class="bottom">
     <div class="stats-bar glass">
+      <div class="goal-row">
+        <label for="goalTarget">Daily goal</label>
+        <progress id="goalProgress" value="0" max="4" aria-label="Sessions finished toward today's goal"></progress>
+        <span class="goal-count"><span id="goalDone">0</span> /</span>
+        <input id="goalTarget" type="number" min="1" max="50" step="1" value="4" title="Sessions to finish today">
+      </div>
+      <div class="stats-row">
       <div class="stat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
         <div><div class="val" id="statToday">0h 00m</div><div class="lbl">Today</div></div>
@@ -1040,6 +1080,7 @@
       <div class="stat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
         <div><div class="val" id="statStreak">0 days</div><div class="lbl">Streak</div></div>
+      </div>
       </div>
     </div>
   </div>
@@ -1227,6 +1268,23 @@
   var statTodayEl = document.getElementById('statToday');
   var statSessionsEl = document.getElementById('statSessions');
   var statStreakEl = document.getElementById('statStreak');
+  var goalProgressEl = document.getElementById('goalProgress');
+  var goalDoneEl = document.getElementById('goalDone');
+  var goalTargetEl = document.getElementById('goalTarget');
+  var GOAL_KEY = 'lockedInRoom.goal.v1';
+  var goal = loadGoal();
+  function loadGoal(){
+    var saved = loadJSON(GOAL_KEY, 4);
+    return Number.isInteger(saved) && saved >= 1 ? saved : 4;
+  }
+  goalTargetEl.addEventListener('change', function(){
+    var entered = parseInt(goalTargetEl.value, 10);
+    if(entered >= 1){
+      goal = Math.min(entered, 50);
+      saveJSON(GOAL_KEY, goal);
+    }
+    renderStats(); // also puts back a blank or invalid entry
+  });
 
   var R = 92, CIRC = 2*Math.PI*R;
   ringProgress.style.strokeDasharray = CIRC.toFixed(2);
@@ -1375,6 +1433,10 @@
     statTodayEl.textContent = h+'h '+String(m).padStart(2,'0')+'m';
     statSessionsEl.textContent = String(stats.sessions);
     statStreakEl.textContent = stats.streak + (stats.streak === 1 ? ' day' : ' days');
+    goalProgressEl.max = goal;
+    goalProgressEl.value = stats.sessions;
+    goalDoneEl.textContent = String(stats.sessions);
+    goalTargetEl.value = goal;
   }
 
   startBtn.addEventListener('click', function(){ timer.running ? pause() : start(); });
@@ -1434,12 +1496,19 @@
   var TODOS_KEY = 'lockedInRoom.todos.v1';
   var todoInput = document.getElementById('todoInput');
   var todoListEl = document.getElementById('todoList');
+  var todoClearBtn = document.getElementById('todoClear');
   var todos = loadTodos();
   function loadTodos(){
     var saved = loadJSON(TODOS_KEY, []);
     return Array.isArray(saved) ? saved : [];
   }
+  function updateClearDone(){
+    var doneCount = todos.filter(function(t){ return t.done; }).length;
+    todoClearBtn.hidden = doneCount === 0;
+    todoClearBtn.textContent = 'Clear done (' + doneCount + ')';
+  }
   function renderTodos(){
+    updateClearDone();
     todoListEl.innerHTML = '';
     todos.forEach(function(t){
       var li = document.createElement('li');
@@ -1452,6 +1521,7 @@
         t.done = box.checked;
         li.classList.toggle('done', t.done);
         saveJSON(TODOS_KEY, todos);
+        updateClearDone();
       });
       var text = document.createElement('span');
       text.textContent = t.text;
@@ -1467,6 +1537,7 @@
         todos = todos.filter(function(x){ return x !== t; });
         saveJSON(TODOS_KEY, todos);
         li.remove();
+        updateClearDone();
         if(usedKeyboard) todoInput.focus();
       });
       li.appendChild(label);
@@ -1474,6 +1545,13 @@
       todoListEl.appendChild(li);
     });
   }
+  todoClearBtn.addEventListener('click', function(){
+    var usedKeyboard = todoClearBtn.matches(':focus-visible'); // the button hides itself, so keep their place
+    todos = todos.filter(function(t){ return !t.done; });
+    saveJSON(TODOS_KEY, todos);
+    renderTodos();
+    if(usedKeyboard) todoInput.focus();
+  });
   document.getElementById('todoForm').addEventListener('submit', function(e){
     e.preventDefault();
     var text = todoInput.value.trim();
@@ -1681,6 +1759,7 @@
     else if(e.key === 'ssr_settings'){ settings = loadJSON(e.key, settings); render(); }
     else if(e.key === 'ssr_stats'){ stats = loadJSON(e.key, stats); renderStats(); }
     else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
+    else if(e.key === GOAL_KEY){ goal = loadGoal(); renderStats(); }
   });
 
   /* ---------- init ---------- */
@@ -1727,6 +1806,7 @@
   var openTimePickerSelects = 0;
   var lastRenderedMinute = null;
   var MISSED = -1e6; // sorts ahead of any real overdue time
+  var SNOOZE_MINUTES = 10;
 
   // Rebuilding the reminder list (as the once-a-second tick does) replaces
   // every row's time-picker <select> elements — which yanks focus away and
@@ -1925,7 +2005,10 @@
   // and then unchecked again) until it's confirmed complete; a repeating
   // reminder only starts counting toward its *next* occurrence once the
   // day rolls over and today's checkmark resets.
+  function isSnoozed(r) { return r.snoozedUntil > Date.now(); }
+
   function sortKey(r) {
+    if (isSnoozed(r)) return Math.ceil((r.snoozedUntil - Date.now()) / 60000);
     // A one-time reminder rings once, so after the day it rang it has nothing left to count down to.
     if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayKey()) return MISSED;
     return rawMinutesDiff(r.time);
@@ -1943,6 +2026,32 @@
     if (mins < 60) return 'in ' + mins + ' min';
     var h = Math.floor(mins / 60), m = mins % 60;
     return 'in ' + h + 'h' + (m ? ' ' + m + 'm' : '');
+  }
+
+  function describeReminder(r) {
+    return (isSnoozed(r) ? 'snoozed, ' : '') + describeCountdown(sortKey(r));
+  }
+
+  function clearToast(r) {
+    document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
+  }
+
+  function setCompleted(r, completed) {
+    r.completed = completed;
+    r.completedDateKey = completed ? todayKey() : null;
+    r.snoozedUntil = null;
+    if (completed) clearToast(r);
+    saveReminders();
+    render();
+    updateNextReminder();
+  }
+
+  function snooze(r) {
+    r.snoozedUntil = Date.now() + SNOOZE_MINUTES * 60000;
+    clearToast(r);
+    saveReminders();
+    render();
+    updateNextReminder();
   }
 
   function updateSummary() {
@@ -2003,6 +2112,7 @@
       function commitRowTime() {
         r.time = timePicker.getValue();
         r.lastFiredKey = null;
+        r.snoozedUntil = null;
         if (!r.repeat) { r.completed = false; }
         saveReminders();
         render();
@@ -2069,10 +2179,10 @@
         pill.textContent = describeCountdown(key);
       } else if (r.id === nextId) {
         pill.className = 'pill next';
-        pill.textContent = describeCountdown(key);
+        pill.textContent = describeReminder(r);
       } else {
         pill.className = 'pill';
-        pill.textContent = describeCountdown(key);
+        pill.textContent = describeReminder(r);
       }
 
       var actions = document.createElement('div');
@@ -2084,16 +2194,7 @@
       check.textContent = '✓';
       check.setAttribute('aria-label', r.completed ? 'Mark as not completed' : 'Mark as completed');
       check.setAttribute('aria-pressed', r.completed ? 'true' : 'false');
-      check.addEventListener('click', function () {
-        r.completed = !r.completed;
-        r.completedDateKey = r.completed ? todayKey() : null;
-        if (r.completed) {
-          document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
-        }
-        saveReminders();
-        render();
-        updateNextReminder();
-      });
+      check.addEventListener('click', function () { setCompleted(r, !r.completed); });
 
       actions.appendChild(check);
 
@@ -2254,6 +2355,15 @@
       }
     });
 
+    // A snooze that ran out rings again, even if the page was closed when it did.
+    reminders.forEach(function (r) {
+      if (!r.snoozedUntil || isSnoozed(r)) return;
+      r.snoozedUntil = null;
+      changed = true;
+      lastRenderedMinute = null; // its pill has to go back to overdue now
+      if (!r.completed) fireReminder(r);
+    });
+
     reminders.forEach(function (r) {
       // shortcut: exact-minute match, so a heavily throttled background tab can miss one; compare against the last tick if that shows up.
       if (r.time !== hhmm || r.completed) return;
@@ -2311,33 +2421,74 @@
     overdue.sort(function (a, b) { return sortKey(a) - sortKey(b); });
     var key = next ? sortKey(next) : 0;
     var anyOverdue = overdue.length > 0;
-    drawerToggle.classList.toggle('expanded', anyOverdue);
+    reminderBellEl.classList.toggle('expanded', anyOverdue);
     nextReminderEl.textContent = anyOverdue ? overdue.length + ' overdue' : (next ? next.label.split('\n')[0] : 'Reminders');
-    nextCountdownEl.textContent = (next && !anyOverdue) ? describeCountdown(key) : '';
+    nextCountdownEl.textContent = (next && !anyOverdue) ? describeReminder(next) : '';
     nextCountdownEl.classList.toggle('overdue', key < 0);
+
+    // This runs every second, and rebuilding the buttons that often would lose clicks and focus.
+    var shown = overdue.concat(anyOverdue && upcoming ? [upcoming] : []);
+    var signature = JSON.stringify(shown.map(function (r) { return [r.id, r.label, describeReminder(r)]; }));
+    if (signature === lastBellSignature) return;
+    lastBellSignature = signature;
+
+    var active = document.activeElement;
+    var activeItem = active && active.matches(':focus-visible') && active.closest('.overdue-item');
+    var refocusId = activeItem ? activeItem.dataset.id : null;
+    var refocusClass = activeItem ? active.classList[1] : null;
+
     overdueListEl.innerHTML = '';
-    overdue.forEach(addBellItem);
+    overdue.forEach(function (r) { addBellItem(r, true); });
     if (anyOverdue && upcoming) {
       var heading = document.createElement('span');
       heading.className = 'next-up-heading';
       heading.textContent = 'Next up';
       overdueListEl.appendChild(heading);
-      addBellItem(upcoming);
+      addBellItem(upcoming, false);
+    }
+
+    if (refocusId) {
+      overdueListEl.querySelectorAll('.overdue-item').forEach(function (item) {
+        var btn = item.dataset.id === refocusId && item.querySelector('.' + refocusClass);
+        if (btn) btn.focus();
+      });
     }
   }
 
-  function addBellItem(r) {
+  function addBellItem(r, canSnooze) {
     var item = document.createElement('span');
     item.className = 'overdue-item';
+    item.dataset.id = r.id;
     var label = document.createElement('span');
     label.className = 'next-reminder';
     label.textContent = r.label;
+    var meta = document.createElement('span');
+    meta.className = 'bell-item-meta';
     var when = document.createElement('span');
     when.className = 'next-countdown';
-    when.textContent = describeCountdown(sortKey(r));
+    when.textContent = describeReminder(r);
+    meta.appendChild(when);
+    meta.appendChild(bellButton('bell-check', '✓', 'Mark ' + r.label + ' as completed', function () { setCompleted(r, true); }));
+    if (canSnooze) {
+      meta.appendChild(bellButton('bell-snooze', 'Snooze ' + SNOOZE_MINUTES + 'm', 'Snooze ' + r.label + ' for ' + SNOOZE_MINUTES + ' minutes', function () { snooze(r); }));
+    }
     item.appendChild(label);
-    item.appendChild(when);
+    item.appendChild(meta);
     overdueListEl.appendChild(item);
+  }
+
+  function bellButton(extraClass, text, ariaLabel, onClick) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bell-btn ' + extraClass;
+    btn.textContent = text;
+    btn.setAttribute('aria-label', ariaLabel);
+    btn.addEventListener('click', function () {
+      var usedKeyboard = btn.matches(':focus-visible'); // this button is about to be replaced
+      onClick();
+      if (usedKeyboard) drawerToggle.focus();
+    });
+    return btn;
   }
 
   document.addEventListener('pointerdown', ensureAudio, { once: true });
@@ -2371,6 +2522,8 @@
   var nextReminderEl = document.getElementById('nextReminder');
   var nextCountdownEl = document.getElementById('nextCountdown');
   var overdueListEl = document.getElementById('overdueList');
+  var reminderBellEl = document.getElementById('reminderBell');
+  var lastBellSignature = null;
 
   function setDrawer(open) {
     drawer.hidden = !open;
