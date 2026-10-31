@@ -328,8 +328,10 @@
   .overdue-list{ flex-basis:100%; min-width:0; display:flex; flex-direction:column; gap:8px; text-align:left; }
   .overdue-list:empty{ display:none; }
   .overdue-item{ display:block; min-width:0; }
-  .overdue-item .next-reminder{ display:block; color:var(--cream); }
+  .overdue-item .next-reminder{ display:block; color:var(--cream); white-space:pre-wrap; overflow-wrap:anywhere; }
   .overdue-item .next-countdown{ display:block; font-size:12px; color:#f0a08a; }
+  .next-up-heading{ padding-top:8px; border-top:1px solid var(--glass-border); color:var(--amber-soft); }
+  .next-up-heading ~ .overdue-item .next-countdown{ color:var(--amber-soft); }
 
   .bell{
     color-scheme:dark;
@@ -2287,33 +2289,43 @@
   function updateNextReminder() {
     var next = null;
     var overdue = [];
+    var upcoming = null;
     reminders.forEach(function (r) {
       if (r.completed) return;
       if (!next || sortKey(r) < sortKey(next)) next = r;
       if (sortKey(r) < 0) overdue.push(r);
+      else if (!upcoming || sortKey(r) < sortKey(upcoming)) upcoming = r;
     });
     overdue.sort(function (a, b) { return sortKey(a) - sortKey(b); });
     var key = next ? sortKey(next) : 0;
-    var many = overdue.length > 1;
-    drawerToggle.classList.toggle('expanded', many);
-    nextReminderEl.textContent = many ? overdue.length + ' overdue' : (next ? next.label.split('\n')[0] : 'Reminders');
-    nextCountdownEl.textContent = (next && !many) ? describeCountdown(key) : '';
+    var anyOverdue = overdue.length > 0;
+    drawerToggle.classList.toggle('expanded', anyOverdue);
+    nextReminderEl.textContent = anyOverdue ? overdue.length + ' overdue' : (next ? next.label.split('\n')[0] : 'Reminders');
+    nextCountdownEl.textContent = (next && !anyOverdue) ? describeCountdown(key) : '';
     nextCountdownEl.classList.toggle('overdue', key < 0);
     overdueListEl.innerHTML = '';
-    if (!many) return;
-    overdue.forEach(function (r) {
-      var item = document.createElement('span');
-      item.className = 'overdue-item';
-      var label = document.createElement('span');
-      label.className = 'next-reminder';
-      label.textContent = r.label.split('\n')[0];
-      var when = document.createElement('span');
-      when.className = 'next-countdown';
-      when.textContent = describeCountdown(sortKey(r));
-      item.appendChild(label);
-      item.appendChild(when);
-      overdueListEl.appendChild(item);
-    });
+    overdue.forEach(addBellItem);
+    if (anyOverdue && upcoming) {
+      var heading = document.createElement('span');
+      heading.className = 'next-up-heading';
+      heading.textContent = 'Next up';
+      overdueListEl.appendChild(heading);
+      addBellItem(upcoming);
+    }
+  }
+
+  function addBellItem(r) {
+    var item = document.createElement('span');
+    item.className = 'overdue-item';
+    var label = document.createElement('span');
+    label.className = 'next-reminder';
+    label.textContent = r.label;
+    var when = document.createElement('span');
+    when.className = 'next-countdown';
+    when.textContent = describeCountdown(sortKey(r));
+    item.appendChild(label);
+    item.appendChild(when);
+    overdueListEl.appendChild(item);
   }
 
   document.addEventListener('pointerdown', ensureAudio, { once: true });
