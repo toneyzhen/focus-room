@@ -267,6 +267,14 @@
   }
   .todo-form input::placeholder{ color:rgba(245,234,212,0.35); }
   .todo-form input:focus{ outline:none; border-bottom-color:var(--amber); }
+  .todo-add-row{ display:flex; align-items:center; gap:10px; }
+  .todo-add-row input{ flex:1; min-width:0; }
+  .todo-add{
+    flex-shrink:0; padding:5px 14px; border-radius:999px; cursor:pointer;
+    background:transparent; border:1px solid var(--glass-border); color:var(--cream);
+    font-family:'Libre Franklin'; font-size:13px; font-weight:600;
+  }
+  .todo-add:hover{ border-color:var(--amber); color:var(--amber-soft); }
   /* Scrolls inside the card, so a long list can't push the timer off the screen. */
   .todo-list{
     list-style:none; margin:0; padding:8px 0 0; max-height:min(24vh,200px); overflow-y:auto;
@@ -1010,7 +1018,10 @@
     <div class="todo-card glass">
       <form class="todo-form" id="todoForm">
         <label for="todoInput">To-do</label>
-        <input id="todoInput" type="text" placeholder="Add something and press Enter" maxlength="120" autocomplete="off">
+        <div class="todo-add-row">
+          <input id="todoInput" type="text" placeholder="Add something" maxlength="120" autocomplete="off">
+          <button class="todo-add" type="submit">Add</button>
+        </div>
       </form>
       <ul class="todo-list" id="todoList"></ul>
     </div>
@@ -1470,6 +1481,7 @@
     todos.push({ text:text, done:false });
     saveJSON(TODOS_KEY, todos);
     todoInput.value = '';
+    todoInput.focus(); // clicking Add moved focus to the button, so they can keep typing
     renderTodos();
     todoListEl.scrollTop = todoListEl.scrollHeight;
   });
