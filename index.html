@@ -1163,9 +1163,6 @@
   var settings = (function(){
     var stored = loadJSON('ssr_settings', null);
     if(!stored || typeof stored.focus !== 'number') return Object.assign({}, DEFAULT_SETTINGS);
-    if(stored.focus <= 200){ // legacy minute-based shape from an earlier version
-      return { focus: stored.focus*60, "break": (stored.short||5)*60 };
-    }
     return { focus: stored.focus, "break": (typeof stored["break"] === 'number') ? stored["break"] : DEFAULT_SETTINGS["break"] };
   })();
   saveJSON('ssr_settings', settings);
@@ -1243,6 +1240,7 @@
     timer.running = true;
     timer.endAt = Date.now() + timer.remaining*1000;
     tickHandle = setInterval(tick, 250);
+    saveTimer();
     render();
   }
   function pause(){
@@ -1250,33 +1248,49 @@
     timer.running = false;
     timer.remaining = Math.max(0, Math.round((timer.endAt - Date.now())/1000));
     clearInterval(tickHandle);
+    saveTimer();
     render();
   }
   function reset(){
     timer.running = false;
     clearInterval(tickHandle);
     timer.remaining = durationFor(timer.mode);
+    saveTimer();
     render();
+  }
+  function saveTimer(){ saveJSON('ssr_timer', timer); }
+  // Take on a saved state: after a refresh, or when another tab changes the timer.
+  function applyTimer(saved){
+    clearInterval(tickHandle);
+    Object.assign(timer, saved);
+    if(timer.running){ tickHandle = setInterval(tick, 250); tick(); }
+    else { render(); }
   }
   function updateStreak(){
     var today = todayStr();
     if(stats.lastActiveDate !== today){
-      var yesterday = todayStr(new Date(Date.now()-86400000));
-      stats.streak = (stats.lastActiveDate === yesterday) ? stats.streak+1 : 1;
+      stats.streak = (daysBetween(stats.lastActiveDate, today) === 1) ? stats.streak+1 : 1;
       stats.lastActiveDate = today;
     }
   }
+  function creditSession(){
+    stats = loadJSON('ssr_stats', stats); // another tab may have added to it
+    checkRollover();
+    stats.sessions += 1;
+    stats.focusedSec += settings.focus;
+    updateStreak();
+    saveJSON('ssr_stats', stats);
+    renderStats();
+  }
   function completeSession(){
+    var saved = loadJSON('ssr_timer', null);
+    if(saved && saved.endAt !== timer.endAt){ applyTimer(saved); return; } // another tab already finished this one
     clearInterval(tickHandle);
     timer.running = false;
+    timer.endAt = null;
     var enteringBreak = false;
     if(timer.mode === 'focus'){
-      stats.sessions += 1;
-      stats.focusedSec += settings.focus;
-      updateStreak();
-      stats.date = todayStr();
-      saveJSON('ssr_stats', stats);
-      renderStats();
+      creditSession();
       timer.mode = 'break';
       enteringBreak = true;
     } else {
@@ -1285,13 +1299,14 @@
     timer.remaining = durationFor(timer.mode);
     playChime();
     flashRing();
-    if(enteringBreak){ start(); } else { render(); }
+    if(enteringBreak){ start(); } else { saveTimer(); render(); }
   }
   function skipBreak(){
     if(timer.mode === 'focus') return;
     timer.running = false; clearInterval(tickHandle);
     timer.mode = 'focus';
     timer.remaining = durationFor('focus');
+    saveTimer();
     render();
   }
 
@@ -1359,6 +1374,7 @@
   function commitEditDigits(){
     digitsEdit.style.display = 'none';
     digitsEl.style.display = '';
+    if(digitsEdit.value === formatMMSS(timer.remaining)) return; // only looked, didn't change it
     var totalSec = parseDuration(digitsEdit.value);
     if(totalSec === null) return;
     var b = EDIT_BOUNDS[timer.mode];
@@ -1366,6 +1382,7 @@
     settings[timer.mode] = totalSec;
     saveJSON('ssr_settings', settings);
     timer.remaining = totalSec;
+    saveTimer();
     render();
   }
   digitsEl.addEventListener('click', startEditDigits);
@@ -1566,6 +1583,23 @@
   }
   window.addEventListener('resize', handleResize);
 
+  /* ---------- resume after a refresh, stay in step with other tabs ---------- */
+  var savedTimer = loadJSON('ssr_timer', null);
+  if(savedTimer && MODE_LABELS[savedTimer.mode] && typeof savedTimer.remaining === 'number'){
+    if(savedTimer.running && savedTimer.endAt <= Date.now()){
+      // shortcut: a session that ended on an earlier day isn't credited, since stats only hold today; store history if that matters.
+      if(savedTimer.mode === 'focus' && todayStr(new Date(savedTimer.endAt)) === todayStr()) creditSession();
+      saveTimer();
+    } else {
+      applyTimer(savedTimer);
+    }
+  }
+  window.addEventListener('storage', function(e){
+    if(e.key === 'ssr_timer') applyTimer(loadJSON(e.key, timer));
+    else if(e.key === 'ssr_settings'){ settings = loadJSON(e.key, settings); render(); }
+    else if(e.key === 'ssr_stats'){ stats = loadJSON(e.key, stats); renderStats(); }
+  });
+
   /* ---------- init ---------- */
   sizeRain(); seedDrops();
   sizeDust(); seedDust();
@@ -1605,6 +1639,8 @@
   var editingLabelId = null;
   var lastHourlyChimeKey = null;
   var openTimePickerSelects = 0;
+  var lastRenderedMinute = null;
+  var MISSED = -1e6; // sorts ahead of any real overdue time
 
   // Rebuilding the reminder list (as the once-a-second tick does) replaces
   // every row's time-picker <select> elements — which yanks focus away and
@@ -1804,10 +1840,13 @@
   // reminder only starts counting toward its *next* occurrence once the
   // day rolls over and today's checkmark resets.
   function sortKey(r) {
+    // A one-time reminder rings once, so after the day it rang it has nothing left to count down to.
+    if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayKey()) return MISSED;
     return rawMinutesDiff(r.time);
   }
 
   function describeCountdown(mins) {
+    if (mins === MISSED) return 'missed';
     if (mins < 0) {
       var over = -mins;
       if (over < 60) return 'overdue ' + over + ' min';
@@ -1827,7 +1866,7 @@
     }
     var upcoming = 0, overdue = 0, done = 0;
     reminders.forEach(function (r) {
-      if (r.completed) { done++; return; }
+      if (r.completed) { if (r.completedDateKey === todayKey()) done++; return; }
       if (sortKey(r) < 0) overdue++; else upcoming++;
     });
     summaryUpcomingEl.textContent = upcoming;
@@ -1837,6 +1876,14 @@
   }
 
   function render() {
+    lastRenderedMinute = nowHHMM();
+
+    // The rows get replaced below, so keyboard users need their place put back.
+    var active = document.activeElement;
+    var activeRow = active && active.matches(':focus-visible') && active.closest('.reminder-row');
+    var refocusId = activeRow ? activeRow.dataset.id : null;
+    var refocusClass = activeRow ? active.classList[active.classList.contains('tp-select') ? 1 : 0] : null;
+
     var sorted = reminders.slice().sort(function (a, b) {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return sortKey(a) - sortKey(b);
@@ -1864,6 +1911,7 @@
     sorted.forEach(function (r) {
       var li = document.createElement('li');
       li.className = 'reminder-row' + (r.completed ? ' done' : '');
+      li.dataset.id = r.id;
 
       var timePicker = buildTimePicker(r.time, r.label, true);
       function commitRowTime() {
@@ -2005,6 +2053,11 @@
       li.appendChild(pill);
       li.appendChild(actions);
       listEl.appendChild(li);
+      if (r.id === refocusId) {
+        var target = li.querySelector('.' + refocusClass) ||
+          li.querySelector(refocusClass.indexOf('delete') === 0 ? '.delete-confirm-btn, .delete-btn' : '.reminder-label');
+        if (target) target.focus();
+      }
     });
 
     if (editingLabelId) {
@@ -2052,7 +2105,6 @@
   function speak(text) {
     if (!('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
       var utter = new SpeechSynthesisUtterance(text);
       utter.rate = 1;
       utter.pitch = 1;
@@ -2100,12 +2152,14 @@
     var h = now.getHours();
     var hhmm = pad(now.getHours()) + ':' + pad(now.getMinutes());
     var tKey = todayKey();
+    var changed = false;
 
     // A repeating task's checkmark is for "done today" — clear it once a new day starts.
     reminders.forEach(function (r) {
       if (r.repeat && r.completed && r.completedDateKey !== tKey) {
         r.completed = false;
         r.completedDateKey = null;
+        changed = true;
       }
     });
 
@@ -2115,6 +2169,8 @@
       var fireKey = r.repeat ? tKey : 'once';
       if (r.lastFiredKey === fireKey) return;
       r.lastFiredKey = fireKey;
+      r.firedDate = tKey;
+      changed = true;
       fireReminder(r);
     });
 
@@ -2126,13 +2182,29 @@
       }
     }
 
-    saveReminders();
-    // Rebuilding the list every second would blow away an in-progress edit
-    // (lost keystrokes, lost focus, a closed dropdown) — skip it while a
-    // label is being typed or a time picker is open.
-    if (!drawer.hidden && !editingLabelId && !openTimePickerSelects) render();
+    // Only when something changed: saving a stale copy every second would
+    // erase whatever another tab just added.
+    if (changed) saveReminders();
+    // Countdowns only move once a minute, and rebuilding the list more often
+    // loses clicks and keyboard focus. Rebuilding would also blow away an
+    // in-progress edit (lost keystrokes, lost focus, a closed dropdown) — skip
+    // it while a label is being typed or a time picker is open.
+    if (!drawer.hidden && !editingLabelId && !openTimePickerSelects && hhmm !== lastRenderedMinute) render();
     updateNextReminder();
   }
+
+  // Another tab changed the list. Update existing objects in place, since
+  // rows and any edit in progress here still hold on to them.
+  window.addEventListener('storage', function (e) {
+    if (e.key !== STORAGE_KEY) return;
+    var current = reminders;
+    reminders = loadReminders().map(function (fresh) {
+      var old = current.filter(function (x) { return x.id === fresh.id; })[0];
+      return old ? Object.assign(old, fresh) : fresh;
+    });
+    if (!drawer.hidden && !editingLabelId && !openTimePickerSelects) render();
+    updateNextReminder();
+  });
 
   // Topbar button: what's next, visible while the drawer is closed.
   function updateNextReminder() {
