@@ -250,25 +250,41 @@
   }
   .link-btn:hover{ color:var(--amber-soft); }
 
-  .task-card{
+  .todo-card{
     width:min(92vw,480px); padding:16px 22px; border-radius:16px;
     display:flex; flex-direction:column; gap:8px;
   }
-  .task-card label{
+  .todo-form label{
     display:block;
     font-size:11px; text-transform:uppercase; letter-spacing:0.09em; color:var(--cream-dim);
     font-weight:600; margin-bottom:3px;
   }
-  .task-card input{
+  .todo-form input{
     display:block; width:100%;
     background:transparent; border:none; color:var(--cream);
-    font-family:'Fraunces',Georgia,serif; font-size:19px; font-weight:500;
+    font-family:'Libre Franklin'; font-size:16px;
     padding:2px 0; border-bottom:1px solid transparent;
   }
-  .task-card input::placeholder{ color:rgba(245,234,212,0.35); font-family:'Libre Franklin'; font-weight:400; font-size:16px;}
-  .task-card input:focus{ outline:none; border-bottom-color:var(--amber); }
-  .task-row + .task-row{ border-top:1px solid var(--glass-border); padding-top:8px; }
-  .task-row.goal input{ font-family:'Libre Franklin'; font-size:14px; font-weight:400; color:var(--cream-dim); }
+  .todo-form input::placeholder{ color:rgba(245,234,212,0.35); }
+  .todo-form input:focus{ outline:none; border-bottom-color:var(--amber); }
+  /* Scrolls inside the card, so a long list can't push the timer off the screen. */
+  .todo-list{
+    list-style:none; margin:0; padding:8px 0 0; max-height:min(24vh,200px); overflow-y:auto;
+    border-top:1px solid var(--glass-border); scrollbar-width:thin; scrollbar-color:rgba(245,234,212,0.3) transparent;
+  }
+  .todo-list:empty{ display:none; }
+  .todo-item{ display:flex; align-items:flex-start; gap:8px; }
+  .todo-item label{
+    flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;
+    padding:4px 0; font-size:15px; overflow-wrap:anywhere; cursor:pointer;
+  }
+  .todo-item input{ flex-shrink:0; width:16px; height:16px; margin:2px 0 0; accent-color:var(--amber); }
+  .todo-item.done span{ color:var(--cream-dim); text-decoration:line-through; }
+  .todo-delete{
+    background:none; border:none; color:var(--cream-dim); cursor:pointer;
+    font-size:18px; line-height:1; padding:3px 8px;
+  }
+  .todo-delete:hover{ color:var(--amber-soft); }
 
   .bottom{
     width:100%; max-width:1100px; display:flex; align-items:flex-end; justify-content:center;
@@ -989,15 +1005,12 @@
       <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
     </div>
 
-    <div class="task-card glass">
-      <div class="task-row">
-        <label for="taskInput">Currently studying</label>
-        <input id="taskInput" type="text" placeholder="What are you working on?" maxlength="80" autocomplete="off">
-      </div>
-      <div class="task-row goal">
-        <label for="goalInput">Session goal</label>
-        <input id="goalInput" type="text" placeholder="What does done look like?" maxlength="90" autocomplete="off">
-      </div>
+    <div class="todo-card glass">
+      <form class="todo-form" id="todoForm">
+        <label for="todoInput">To-do</label>
+        <input id="todoInput" type="text" placeholder="Add something and press Enter" maxlength="120" autocomplete="off">
+      </form>
+      <ul class="todo-list" id="todoList"></ul>
     </div>
   </div>
 
@@ -1404,15 +1417,61 @@
   });
   digitsEdit.addEventListener('blur', commitEditDigits);
 
-  /* ---------- task / goal persistence ---------- */
-  var taskInput = document.getElementById('taskInput');
-  var goalInput = document.getElementById('goalInput');
-  var task = loadJSON('ssr_task', { task:'', goal:'' });
-  taskInput.value = task.task || '';
-  goalInput.value = task.goal || '';
-  function persistTask(){ saveJSON('ssr_task', { task:taskInput.value, goal:goalInput.value }); }
-  taskInput.addEventListener('input', persistTask);
-  goalInput.addEventListener('input', persistTask);
+  /* ---------- to-do list ---------- */
+  var TODOS_KEY = 'lockedInRoom.todos.v1';
+  var todoInput = document.getElementById('todoInput');
+  var todoListEl = document.getElementById('todoList');
+  var todos = loadTodos();
+  function loadTodos(){
+    var saved = loadJSON(TODOS_KEY, []);
+    return Array.isArray(saved) ? saved : [];
+  }
+  function renderTodos(){
+    todoListEl.innerHTML = '';
+    todos.forEach(function(t){
+      var li = document.createElement('li');
+      li.className = 'todo-item' + (t.done ? ' done' : '');
+      var label = document.createElement('label');
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = t.done;
+      box.addEventListener('change', function(){
+        t.done = box.checked;
+        li.classList.toggle('done', t.done);
+        saveJSON(TODOS_KEY, todos);
+      });
+      var text = document.createElement('span');
+      text.textContent = t.text;
+      label.appendChild(box);
+      label.appendChild(text);
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'todo-delete';
+      del.textContent = '×';
+      del.setAttribute('aria-label', 'Delete ' + t.text);
+      del.addEventListener('click', function(){
+        var usedKeyboard = del.matches(':focus-visible'); // the button is about to go, so keep their place
+        todos = todos.filter(function(x){ return x !== t; });
+        saveJSON(TODOS_KEY, todos);
+        li.remove();
+        if(usedKeyboard) todoInput.focus();
+      });
+      li.appendChild(label);
+      li.appendChild(del);
+      todoListEl.appendChild(li);
+    });
+  }
+  document.getElementById('todoForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var text = todoInput.value.trim();
+    if(!text) return;
+    todos.push({ text:text, done:false });
+    saveJSON(TODOS_KEY, todos);
+    todoInput.value = '';
+    renderTodos();
+    todoListEl.scrollTop = todoListEl.scrollHeight;
+  });
+  renderTodos();
 
   /* ---------- clock ---------- */
   var clockTime = document.getElementById('clockTime'), clockDate = document.getElementById('clockDate');
@@ -1607,6 +1666,7 @@
     if(e.key === 'ssr_timer') applyTimer(loadJSON(e.key, timer));
     else if(e.key === 'ssr_settings'){ settings = loadJSON(e.key, settings); render(); }
     else if(e.key === 'ssr_stats'){ stats = loadJSON(e.key, stats); renderStats(); }
+    else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
   });
 
   /* ---------- init ---------- */
