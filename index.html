@@ -306,6 +306,14 @@
   .next-reminder{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .next-countdown{ flex-shrink:0; color:var(--amber-soft); }
   .next-countdown.overdue{ color:#f0a08a; }
+  .reminder-toggle.expanded{ flex-wrap:wrap; border-radius:18px; }
+  .reminder-toggle.expanded .next-reminder{ color:#f0a08a; }
+  /* shortcut: a very long list runs down over the task card on narrow windows, cap it with an inner scroll if that shows up. */
+  .overdue-list{ flex-basis:100%; min-width:0; display:flex; flex-direction:column; gap:8px; text-align:left; }
+  .overdue-list:empty{ display:none; }
+  .overdue-item{ display:block; min-width:0; }
+  .overdue-item .next-reminder{ display:block; color:var(--cream); }
+  .overdue-item .next-countdown{ display:block; font-size:12px; color:#f0a08a; }
 
   .bell{
     color-scheme:dark;
@@ -958,6 +966,7 @@
       <span aria-hidden="true">🔔</span>
       <span class="next-reminder" id="nextReminder">Reminders</span>
       <span class="next-countdown" id="nextCountdown"></span>
+      <span class="overdue-list" id="overdueList"></span>
     </button>
   </div>
 
@@ -1225,7 +1234,7 @@
   var tickHandle = null;
   function tick(){
     if(!timer.running) return;
-    var remaining = Math.round((timer.endAt - Date.now())/1000);
+    var remaining = Math.ceil((timer.endAt - Date.now())/1000); // rounding would end every session half a second early
     if(remaining <= 0){
       timer.remaining = 0; render();
       completeSession();
@@ -1246,7 +1255,7 @@
   function pause(){
     if(!timer.running) return;
     timer.running = false;
-    timer.remaining = Math.max(0, Math.round((timer.endAt - Date.now())/1000));
+    timer.remaining = Math.max(0, Math.ceil((timer.endAt - Date.now())/1000));
     clearInterval(tickHandle);
     saveTimer();
     render();
@@ -1347,7 +1356,7 @@
   skipBtn.addEventListener('click', skipBreak);
 
   /* ---------- inline timer-length editing (click the digits) ---------- */
-  var EDIT_BOUNDS = { focus:[60, 180*60], "break":[60, 60*60] };
+  var EDIT_BOUNDS = { focus:[1, 180*60], "break":[1, 60*60] };
 
   function parseDuration(raw){
     raw = raw.trim();
@@ -1618,7 +1627,10 @@
 </script>
 <script>
 (function () {
-  var STORAGE_KEY = 'reminderBell.reminders.v1';
+  // Our own key: an open Reminder Bell tab, or a tab of an older build of this
+  // page, saves its stale list to the old key every second and would undo checkmarks.
+  var STORAGE_KEY = 'lockedInRoom.reminders.v1';
+  var OLD_STORAGE_KEY = 'reminderBell.reminders.v1';
   var SETTINGS_KEY = 'reminderBell.settings.v1';
   var listEl = document.getElementById('reminderList');
   var summaryBar = document.getElementById('summaryBar');
@@ -1720,7 +1732,7 @@
 
   function loadReminders() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_STORAGE_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) {}
     return [
@@ -2001,8 +2013,12 @@
       check.addEventListener('click', function () {
         r.completed = !r.completed;
         r.completedDateKey = r.completed ? todayKey() : null;
+        if (r.completed) {
+          document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
+        }
         saveReminders();
         render();
+        updateNextReminder();
       });
 
       actions.appendChild(check);
@@ -2122,9 +2138,10 @@
 
   // Always on screen: sound is opt-in and the drawer is usually closed, so
   // without this a reminder could fire with no sign at all.
-  function showToast(text) {
+  function showToast(text, id) {
     var toast = document.createElement('div');
     toast.className = 'toast';
+    if (id) toast.dataset.id = id;
     var msg = document.createElement('div');
     msg.className = 'toast-text';
     msg.textContent = text;
@@ -2140,7 +2157,7 @@
   }
 
   function fireReminder(r) {
-    showToast(r.label);
+    showToast(r.label, r.id);
     if (settings.reminderSound) {
       playChime();
       setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
@@ -2209,13 +2226,34 @@
   // Topbar button: what's next, visible while the drawer is closed.
   function updateNextReminder() {
     var next = null;
+    var overdue = [];
     reminders.forEach(function (r) {
-      if (!r.completed && (!next || sortKey(r) < sortKey(next))) next = r;
+      if (r.completed) return;
+      if (!next || sortKey(r) < sortKey(next)) next = r;
+      if (sortKey(r) < 0) overdue.push(r);
     });
+    overdue.sort(function (a, b) { return sortKey(a) - sortKey(b); });
     var key = next ? sortKey(next) : 0;
-    nextReminderEl.textContent = next ? next.label.split('\n')[0] : 'Reminders';
-    nextCountdownEl.textContent = next ? describeCountdown(key) : '';
+    var many = overdue.length > 1;
+    drawerToggle.classList.toggle('expanded', many);
+    nextReminderEl.textContent = many ? overdue.length + ' overdue' : (next ? next.label.split('\n')[0] : 'Reminders');
+    nextCountdownEl.textContent = (next && !many) ? describeCountdown(key) : '';
     nextCountdownEl.classList.toggle('overdue', key < 0);
+    overdueListEl.innerHTML = '';
+    if (!many) return;
+    overdue.forEach(function (r) {
+      var item = document.createElement('span');
+      item.className = 'overdue-item';
+      var label = document.createElement('span');
+      label.className = 'next-reminder';
+      label.textContent = r.label.split('\n')[0];
+      var when = document.createElement('span');
+      when.className = 'next-countdown';
+      when.textContent = describeCountdown(sortKey(r));
+      item.appendChild(label);
+      item.appendChild(when);
+      overdueListEl.appendChild(item);
+    });
   }
 
   document.addEventListener('pointerdown', ensureAudio, { once: true });
@@ -2248,6 +2286,7 @@
   var drawerCloseBtn = document.getElementById('drawerCloseBtn');
   var nextReminderEl = document.getElementById('nextReminder');
   var nextCountdownEl = document.getElementById('nextCountdown');
+  var overdueListEl = document.getElementById('overdueList');
 
   function setDrawer(open) {
     drawer.hidden = !open;
