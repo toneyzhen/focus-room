@@ -178,6 +178,13 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
+  .topbar-row{ display:flex; flex-wrap:wrap; align-items:stretch; gap:12px; }
+  .rain-control{ display:flex; align-items:center; gap:10px; padding:0 16px; border-radius:999px; }
+  .rain-control button{
+    padding:10px 0; background:none; border:none; color:var(--cream-dim); font-size:14px; white-space:nowrap; cursor:pointer;
+  }
+  .rain-control button:hover, .rain-control button[aria-pressed="true"]{ color:var(--amber-soft); }
+  .rain-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
   .clock-pill{
     display:flex; align-items:baseline; gap:10px;
     padding:10px 20px; border-radius:999px;
@@ -231,6 +238,13 @@
     margin-top:8px; opacity:0.8;
   }
 
+  .presets{ display:flex; gap:8px; }
+  .presets button{
+    padding:4px 12px; background:none; border:1px solid var(--glass-border); border-radius:999px;
+    color:var(--cream-dim); font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .presets button:hover{ color:var(--cream); border-color:rgba(245,234,212,0.3); }
+  .presets button[aria-pressed="true"]{ color:var(--amber-soft); border-color:var(--amber); }
   .controls{ display:flex; align-items:center; gap:14px; }
   .btn{
     font-family:'Libre Franklin'; font-weight:600; font-size:15px; letter-spacing:0.01em;
@@ -1014,9 +1028,15 @@
 
 <div class="ui">
   <div class="topbar">
-    <div class="clock-pill glass">
-      <span class="time" id="clockTime">--:--</span>
-      <span class="date" id="clockDate">—</span>
+    <div class="topbar-row">
+      <div class="clock-pill glass">
+        <span class="time" id="clockTime">--:--</span>
+        <span class="date" id="clockDate">—</span>
+      </div>
+      <div class="rain-control glass">
+        <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
+        <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume" hidden>
+      </div>
     </div>
     <div class="reminder-bell glass" id="reminderBell">
       <button class="reminder-toggle" id="drawerToggle" type="button" aria-expanded="false" aria-controls="drawer">
@@ -1041,6 +1061,11 @@
       </div>
     </div>
     <div class="edit-hint">Click the time to set it</div>
+    <div class="presets" id="presets">
+      <button type="button" data-minutes="25" aria-label="Set focus length to 25 minutes">25m</button>
+      <button type="button" data-minutes="50" aria-label="Set focus length to 50 minutes">50m</button>
+      <button type="button" data-minutes="90" aria-label="Set focus length to 90 minutes">90m</button>
+    </div>
     <div class="controls">
       <button class="btn btn-ghost" id="resetBtn">Reset</button>
       <button class="btn btn-primary" id="startBtn">Start focus</button>
@@ -1268,6 +1293,8 @@
   var statTodayEl = document.getElementById('statToday');
   var statSessionsEl = document.getElementById('statSessions');
   var statStreakEl = document.getElementById('statStreak');
+  var presetsEl = document.getElementById('presets');
+  var presetBtns = presetsEl.querySelectorAll('button');
   var goalProgressEl = document.getElementById('goalProgress');
   var goalDoneEl = document.getElementById('goalDone');
   var goalTargetEl = document.getElementById('goalTarget');
@@ -1312,8 +1339,22 @@
     ringProgress.style.strokeDashoffset = (CIRC * (1-frac)).toFixed(2);
     startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === durationFor(timer.mode) ? MODE_START_LABELS[timer.mode] : 'Resume');
     skipBtn.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden';
-    document.title = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Locked In Room';
+    renderTitle();
+    presetsEl.style.visibility = (timer.running || timer.mode !== 'focus') ? 'hidden' : 'visible';
+    presetBtns.forEach(function(btn){
+      btn.setAttribute('aria-pressed', settings.focus === btn.dataset.minutes*60 ? 'true' : 'false');
+    });
   }
+  function renderTitle(){
+    var base = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Locked In Room';
+    document.title = (overdueCount ? '('+overdueCount+') ' : '') + base;
+  }
+  // The reminder script sends this; the two scripts share nothing else.
+  var overdueCount = 0;
+  document.addEventListener('overduechange', function(e){
+    overdueCount = e.detail;
+    renderTitle();
+  });
 
   var tickHandle = null;
   function tick(){
@@ -1427,6 +1468,56 @@
     }catch(e){}
   }
 
+  /* ---------- rain sound (generated noise, so there's no audio file to load) ---------- */
+  var RAIN_VOLUME_KEY = 'lockedInRoom.rainVolume.v1';
+  var rainBtn = document.getElementById('rainBtn');
+  var rainVolume = document.getElementById('rainVolume');
+  var rainCtx = null, rainGain = null, rainInput = null, rainBuffer = null, rainSource = null;
+  rainVolume.value = loadJSON(RAIN_VOLUME_KEY, 0.5);
+
+  function rainLevel(){ return rainVolume.value * 0.35; } // full-scale noise is painfully loud
+  function setUpRainAudio(){
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    rainCtx = new Ctx();
+    rainBuffer = rainCtx.createBuffer(1, rainCtx.sampleRate*4, rainCtx.sampleRate);
+    var samples = rainBuffer.getChannelData(0);
+    for(var i=0;i<samples.length;i++){ samples[i] = Math.random()*2 - 1; }
+    rainInput = rainCtx.createBiquadFilter();
+    rainInput.type = 'highpass'; rainInput.frequency.value = 400;
+    var lowpass = rainCtx.createBiquadFilter();
+    lowpass.type = 'lowpass'; lowpass.frequency.value = 7000;
+    rainGain = rainCtx.createGain();
+    rainGain.gain.value = 0;
+    rainInput.connect(lowpass); lowpass.connect(rainGain); rainGain.connect(rainCtx.destination);
+  }
+  function startRain(){
+    if(!rainCtx) setUpRainAudio();
+    rainCtx.resume();
+    rainSource = rainCtx.createBufferSource();
+    rainSource.buffer = rainBuffer;
+    rainSource.loop = true;
+    rainSource.connect(rainInput);
+    rainSource.start();
+    rainGain.gain.setTargetAtTime(rainLevel(), rainCtx.currentTime, 0.3);
+  }
+  function stopRain(){
+    rainGain.gain.setTargetAtTime(0, rainCtx.currentTime, 0.1);
+    rainSource.stop(rainCtx.currentTime + 0.5);
+    rainSource = null;
+  }
+  rainBtn.addEventListener('click', function(){
+    var turnOn = !rainSource;
+    try{
+      if(turnOn) startRain(); else stopRain();
+    }catch(e){ return; } // no Web Audio here, so the button just stays off
+    rainBtn.setAttribute('aria-pressed', turnOn ? 'true' : 'false');
+    rainVolume.hidden = !turnOn;
+  });
+  rainVolume.addEventListener('input', function(){
+    if(rainSource) rainGain.gain.setTargetAtTime(rainLevel(), rainCtx.currentTime, 0.05);
+  });
+  rainVolume.addEventListener('change', function(){ saveJSON(RAIN_VOLUME_KEY, Number(rainVolume.value)); });
+
   function renderStats(){
     var totalMin = Math.round(stats.focusedSec/60);
     var h = Math.floor(totalMin/60), m = totalMin%60;
@@ -1474,6 +1565,9 @@
     if(digitsEdit.value === formatMMSS(timer.remaining)) return; // only looked, didn't change it
     var totalSec = parseDuration(digitsEdit.value);
     if(totalSec === null) return;
+    setSessionLength(totalSec);
+  }
+  function setSessionLength(totalSec){
     var b = EDIT_BOUNDS[timer.mode];
     totalSec = Math.min(b[1], Math.max(b[0], totalSec));
     settings[timer.mode] = totalSec;
@@ -1482,6 +1576,9 @@
     saveTimer();
     render();
   }
+  presetBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){ setSessionLength(btn.dataset.minutes*60); });
+  });
   digitsEl.addEventListener('click', startEditDigits);
   digitsEl.addEventListener('keydown', function(e){
     if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startEditDigits(); }
@@ -2390,6 +2487,7 @@
       else if (!upcoming || sortKey(r) < sortKey(upcoming)) upcoming = r;
     });
     overdue.sort(function (a, b) { return sortKey(a) - sortKey(b); });
+    document.dispatchEvent(new CustomEvent('overduechange', { detail: overdue.length }));
     var key = next ? sortKey(next) : 0;
     var anyOverdue = overdue.length > 0;
     reminderBellEl.classList.toggle('expanded', anyOverdue);
