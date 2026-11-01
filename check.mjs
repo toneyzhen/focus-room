@@ -17,7 +17,7 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'parseDuration'];
+const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration'];
 const rulesAt = (when) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
@@ -73,6 +73,12 @@ assert.ok(!evening.isDue('14:58', '14:58', '15:05'), 'the last check already han
 assert.ok(!evening.isDue('15:06', '14:58', '15:05'), 'a later time waits');
 assert.ok(!evening.isDue('08:00', '19:20', '19:20'), 'opening the page does not ring earlier times');
 assert.ok(evening.isDue('07:00', '', '08:00'), 'a new day checks from midnight');
+
+// The repeating timer keeps its beat, even after a long gap.
+const everyTwenty = 20 * 60000;
+assert.equal(evening.nextNudgeAt(1000, everyTwenty, 1000), 1000 + everyTwenty, 'the next ring after one that just came due');
+assert.equal(evening.nextNudgeAt(1000, everyTwenty, 999), 1000, 'not due yet, so no change');
+assert.equal(evening.nextNudgeAt(1000, everyTwenty, 1000 + 3.5 * everyTwenty), 1000 + 4 * everyTwenty, 'missed rings are skipped, staying on the beat');
 
 // Typing a timer length.
 assert.equal(evening.parseDuration('25'), 1500);

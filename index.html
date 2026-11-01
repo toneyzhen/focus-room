@@ -201,7 +201,7 @@
   }
 
   .topbar{
-    width:100%; max-width:1100px;
+    width:100%; /* full width so the reminder card reaches the left side of the screen */
     position:relative;
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
@@ -392,9 +392,11 @@
   .reminder-status.overdue{ color:#f0a08a; }
   .reminder-chevron{ font-size:16px; line-height:1; color:var(--cream-dim); }
   .reminder-toggle:hover .reminder-chevron{ color:var(--amber-soft); }
+  .nudge-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid var(--glass-border); }
+  .nudge-row[hidden]{ display:none; }
   /* Out of flow beside the timer, so it doesn't push the centred hero down. */
-  @media (min-width: 641px){
-    .reminder-bell{ position:absolute; top:100%; left:0; margin-top:12px; width:min(300px,34vw); }
+  @media (min-width: 860px){
+    .reminder-bell{ position:absolute; top:100%; left:0; margin-top:12px; width:min(300px,28vw); }
   }
   /* Scrolls inside the card, so a long list can't run down over the timer. */
   .overdue-list{
@@ -576,7 +578,7 @@
 
   label.grow { flex: 1; min-width: 180px; }
 
-  input[type="text"], #labelInput {
+  input[type="text"], #labelInput, #nudgeMinutes {
     font-family: inherit;
     font-size: 15px;
     color: var(--ink);
@@ -585,6 +587,8 @@
     border-radius: 6px;
     padding: 9px 10px;
   }
+
+  #nudgeMinutes { width: 100px; }
 
   #labelInput {
     display: block;
@@ -998,10 +1002,10 @@
     position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:60;
     width:min(92vw,440px); display:flex; flex-direction:column; gap:8px;
   }
-  /* Lines up with the top bar's left edge, in the free space beside the clock. */
+  /* In line with the reminder card, in the free space beside the clock. */
   @media (min-width: 860px){
     .toasts{
-      top:clamp(16px,3vh,36px); left:max(clamp(16px,3vw,40px), (100vw - 1100px) / 2); transform:none;
+      top:clamp(16px,3vh,36px); left:clamp(16px,3vw,40px); transform:none;
       width:min(300px,24vw);
     }
   }
@@ -1094,6 +1098,13 @@
         <span class="reminder-status" id="reminderStatus"></span>
         <span class="reminder-chevron" aria-hidden="true">›</span>
       </button>
+      <div class="nudge-row" id="nudgeRow" hidden>
+        <span class="bell-item-text">
+          <span class="bell-item-label" id="nudgeRowLabel"></span>
+          <span class="bell-item-when" id="nudgeRowWhen"></span>
+        </span>
+        <button class="link-btn" id="nudgeRowStop" type="button" aria-label="Stop the repeating timer">Stop</button>
+      </div>
       <div class="overdue-list" id="overdueList"></div>
     </div>
   </div>
@@ -1205,6 +1216,23 @@
         </div>
       </form>
     </div>
+  </section>
+
+  <section class="panel">
+    <h2>Repeating timer</h2>
+    <form id="nudgeForm">
+      <div class="field-row">
+        <label class="grow">Remind me to
+          <input type="text" id="nudgeLabel" placeholder="e.g. Drink water" maxlength="120" required autocomplete="off">
+        </label>
+        <label>Every (minutes)
+          <input type="number" id="nudgeMinutes" min="1" max="720" step="1" value="20" required>
+        </label>
+      </div>
+      <div class="field-row">
+        <button type="submit" class="primary-btn" id="nudgeSubmit">Start</button>
+      </div>
+    </form>
   </section>
 
   <section class="panel">
@@ -2011,6 +2039,10 @@
   var HOUR_NOTES = [660];
   var REMINDER_RING_GAP = 1.4; // seconds
   var REMINDER_SOUND_MS = 3000; // both rings, so the hourly chime waits for them
+  var NUDGE_KEY = 'lockedInRoom.nudge.v1';
+  var NUDGE_NOTES = [784, 988];
+  var NUDGE_SOUND_MS = 1500;
+  var nudge = loadNudge();
   var lastCheckDay = null;
   var lastCheckHHMM = null;
   var pointerDown = false;
@@ -2566,6 +2598,49 @@
     if (settings.voice) setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
   }
 
+  function loadNudge() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(NUDGE_KEY));
+      if (saved && typeof saved.label === 'string' && saved.minutes >= 1) return saved;
+    } catch (e) {}
+    return { on: false, label: '', minutes: 20, nextAt: 0 };
+  }
+
+  function saveNudge() {
+    try { localStorage.setItem(NUDGE_KEY, JSON.stringify(nudge)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
+  }
+
+  // Stays on the same every-N-minutes beat after sleep or a throttled tab, ringing once for whatever was missed.
+  function nextNudgeAt(nextAt, everyMs, now) {
+    while (nextAt <= now) nextAt += everyMs;
+    return nextAt;
+  }
+
+  function renderNudge() {
+    nudgeRowEl.hidden = !nudge.on;
+    nudgeSubmitEl.textContent = nudge.on ? 'Stop' : 'Start';
+    nudgeLabelEl.disabled = nudge.on;
+    nudgeMinutesEl.disabled = nudge.on;
+    updateNudgeRow();
+  }
+
+  function updateNudgeRow() {
+    if (!nudge.on) return;
+    nudgeRowLabelEl.textContent = nudge.label;
+    nudgeRowWhenEl.textContent = 'Every ' + nudge.minutes + ' min · next ' + describeCountdown(Math.ceil((nudge.nextAt - Date.now()) / 60000));
+  }
+
+  function fillNudgeForm() {
+    nudgeLabelEl.value = nudge.label;
+    nudgeMinutesEl.value = nudge.minutes;
+  }
+
+  function stopNudge() {
+    nudge.on = false;
+    saveNudge();
+    renderNudge();
+  }
+
   // Did this time come up since the last check? Sleep or a throttled tab can skip its exact minute.
   function isDue(time, since, hhmm) {
     return time === hhmm || (time > since && time < hhmm);
@@ -2579,7 +2654,8 @@
     var changed = false;
     var chimed = false;
     // First check rings only this minute, since the page may have been closed on purpose. A new day checks from midnight.
-    var since = lastCheckDay === null ? hhmm : (lastCheckDay === tKey ? lastCheckHHMM : '');
+    var firstCheck = lastCheckDay === null;
+    var since = firstCheck ? hhmm : (lastCheckDay === tKey ? lastCheckHHMM : '');
     lastCheckDay = tKey;
     lastCheckHHMM = hhmm;
 
@@ -2603,12 +2679,25 @@
       chimed = settings.reminderSound;
     });
     if (chimed) playReminderSound(); // once, however many came due together
+    var soundDelay = chimed ? REMINDER_SOUND_MS : 0; // each sound waits for the one before it
+
+    if (nudge.on && Date.now() >= nudge.nextAt) {
+      if (!firstCheck) {
+        showToast(nudge.label, 'nudge');
+        playChime(NUDGE_NOTES, soundDelay / 1000);
+        soundDelay += NUDGE_SOUND_MS;
+        if (settings.voice) speak(spokenLabel(nudge.label));
+      }
+      nudge.nextAt = nextNudgeAt(nudge.nextAt, nudge.minutes * 60000, Date.now());
+      saveNudge();
+    }
+    updateNudgeRow();
 
     if (settings.hourlyChime && now.getMinutes() === 0) {
       var hourKey = tKey + '-' + pad(h);
       if (lastHourlyChimeKey !== hourKey) {
         lastHourlyChimeKey = hourKey;
-        setTimeout(function () { fireHourlyChime(now); }, chimed ? REMINDER_SOUND_MS : 0);
+        setTimeout(function () { fireHourlyChime(now); }, soundDelay);
       }
     }
 
@@ -2626,6 +2715,11 @@
   // Another tab changed the list. Update existing objects in place, since
   // rows and any edit in progress here still hold on to them.
   window.addEventListener('storage', function (e) {
+    if (e.key === NUDGE_KEY) {
+      nudge = loadNudge();
+      fillNudgeForm();
+      renderNudge();
+    }
     if (e.key !== STORAGE_KEY) return;
     var current = reminders;
     reminders = loadReminders().map(function (fresh) {
@@ -2754,6 +2848,35 @@
   var reminderStatusEl = document.getElementById('reminderStatus');
   var overdueListEl = document.getElementById('overdueList');
   var lastBellSignature = null;
+  var nudgeRowEl = document.getElementById('nudgeRow');
+  var nudgeRowLabelEl = document.getElementById('nudgeRowLabel');
+  var nudgeRowWhenEl = document.getElementById('nudgeRowWhen');
+  var nudgeLabelEl = document.getElementById('nudgeLabel');
+  var nudgeMinutesEl = document.getElementById('nudgeMinutes');
+  var nudgeSubmitEl = document.getElementById('nudgeSubmit');
+
+  document.getElementById('nudgeForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (nudge.on) {
+      stopNudge();
+      return;
+    }
+    var label = nudgeLabelEl.value.trim();
+    if (!label) return;
+    ensureAudio();
+    var minutes = Math.min(720, Math.max(1, parseInt(nudgeMinutesEl.value, 10) || 20));
+    nudge = { on: true, label: label, minutes: minutes, nextAt: Date.now() + minutes * 60000 };
+    fillNudgeForm();
+    saveNudge();
+    renderNudge();
+  });
+  document.getElementById('nudgeRowStop').addEventListener('click', function () {
+    var usedKeyboard = this.matches(':focus-visible'); // this button is about to hide itself
+    stopNudge();
+    if (usedKeyboard) drawerToggle.focus();
+  });
+  fillNudgeForm();
+  renderNudge();
 
   function setDrawer(open) {
     drawer.hidden = !open;
