@@ -347,6 +347,25 @@
   .goal-row input{
     width:44px; background:transparent; border:none; border-bottom:1px solid var(--glass-border); text-align:center;
   }
+  .week{ padding:10px 16px 8px; border-bottom:1px solid var(--glass-border); }
+  .week-head{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:11px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.07em;
+  }
+  .week-key{ display:flex; align-items:center; gap:6px; }
+  .week-key::before{ content:''; width:14px; height:1px; background:var(--cream-dim); }
+  .week-chart{ display:grid; grid-template-columns:repeat(7,1fr); margin-top:6px; }
+  .week-day{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
+  /* Top padding leaves room for the count above the tallest bar. */
+  .week-plot{ position:relative; width:100%; height:64px; padding-top:18px; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
+  .week-plot .week-bar{ flex-shrink:0; width:min(22px,70%); min-height:2px; border-radius:4px 4px 0 0; background:rgba(245,234,212,0.32); }
+  .week-day.met .week-bar{ background:var(--amber); }
+  /* The backing keeps the goal line from striking through a count that lands on it. */
+  .week-count{ position:relative; margin-bottom:2px; padding:0 3px; border-radius:3px; background:#1d1726; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:var(--cream-dim); }
+  .week-day.met .week-count, .week-day.today .week-count{ color:var(--cream); }
+  .week-goal-line{ position:absolute; left:0; right:0; height:1px; background:rgba(245,234,212,0.28); }
+  .week-label{ font-size:11px; color:var(--cream-dim); }
+  .week-day.today .week-label{ color:var(--cream); font-weight:600; }
   .stat{
     display:flex; align-items:center; gap:10px; padding:10px 22px;
   }
@@ -1109,6 +1128,13 @@
         <span class="goal-count"><span id="goalDone">0</span> /</span>
         <input id="goalTarget" type="number" min="1" max="50" step="1" value="4" title="Sessions to finish today">
       </div>
+      <div class="week">
+        <div class="week-head">
+          <span>Last 7 days</span>
+          <span class="week-key" id="weekGoal">Goal 4</span>
+        </div>
+        <div class="week-chart" id="weekChart" role="img"></div>
+      </div>
       <div class="stats-row">
       <div class="stat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
@@ -1231,7 +1257,7 @@
     <div class="field-row">
       <label class="checkbox">
         <input type="checkbox" id="reminderSoundToggle">
-        Sound when a reminder comes due
+        Ring twice when a reminder's start time arrives
       </label>
     </div>
     <div class="field-row">
@@ -1273,6 +1299,7 @@
 
   // Our own keys: the old Lamplight page shares the ssr_ ones, reads a short timer as minutes and leaves yesterday's time in the stats.
   var TIMER_SETTINGS_KEY = 'lockedInRoom.timerSettings.v1', STATS_KEY = 'lockedInRoom.stats.v1', TIMER_KEY = 'lockedInRoom.timer.v1';
+  var HISTORY_KEY = 'lockedInRoom.history.v1';
   [['ssr_settings',TIMER_SETTINGS_KEY], ['ssr_stats',STATS_KEY], ['ssr_timer',TIMER_KEY]].forEach(function(k){
     try{
       if(localStorage.getItem(k[1]) === null && localStorage.getItem(k[0]) !== null) localStorage.setItem(k[1], localStorage.getItem(k[0]));
@@ -1302,6 +1329,13 @@
   var stats = loadJSON(STATS_KEY, null);
   if(!stats){ stats = { date: todayStr(), focusedSec:0, sessions:0, streak:0, lastActiveDate:null }; }
   else if(typeof stats.focusedSec !== 'number'){ stats.focusedSec = Math.round((stats.focusedMin||0)*60); delete stats.focusedMin; }
+  // Stats only hold one day, so each day's totals are copied here for the chart. One small entry a day, never trimmed.
+  function recordDay(){
+    var history = loadJSON(HISTORY_KEY, {});
+    history[stats.date] = { sessions:stats.sessions, focusedSec:stats.focusedSec };
+    saveJSON(HISTORY_KEY, history);
+  }
+  if(stats.sessions) recordDay(); // keeps the last day used before the reset below
   (function reconcileStats(){
     var today = todayStr();
     if(stats.date !== today){ stats.date = today; stats.focusedSec = 0; stats.sessions = 0; }
@@ -1328,6 +1362,8 @@
   var goalProgressEl = document.getElementById('goalProgress');
   var goalDoneEl = document.getElementById('goalDone');
   var goalTargetEl = document.getElementById('goalTarget');
+  var weekChartEl = document.getElementById('weekChart');
+  var weekGoalEl = document.getElementById('weekGoal');
   var GOAL_KEY = 'lockedInRoom.goal.v1';
   var goal = loadGoal();
   function loadGoal(){
@@ -1444,6 +1480,7 @@
     stats.focusedSec += settings.focus;
     updateStreak();
     saveJSON(STATS_KEY, stats);
+    recordDay();
     renderStats();
   }
   function completeSession(){
@@ -1548,16 +1585,62 @@
   });
   rainVolume.addEventListener('change', function(){ saveJSON(RAIN_VOLUME_KEY, Number(rainVolume.value)); });
 
+  function formatFocus(sec){
+    var totalMin = Math.round(sec/60);
+    return Math.floor(totalMin/60)+'h '+String(totalMin%60).padStart(2,'0')+'m';
+  }
+  function renderWeek(){
+    var history = loadJSON(HISTORY_KEY, {});
+    var days = [];
+    for(var i=6;i>=0;i--){
+      var d = new Date();
+      d.setDate(d.getDate()-i);
+      var saved = history[todayStr(d)] || { sessions:0, focusedSec:0 };
+      days.push({ date:d, sessions:saved.sessions, focusedSec:saved.focusedSec, isToday:i===0 });
+    }
+    days[6].sessions = stats.sessions;
+    days[6].focusedSec = stats.focusedSec;
+    var top = Math.max.apply(null, days.map(function(x){ return x.sessions; }).concat(goal));
+    weekGoalEl.textContent = 'Goal '+goal;
+    weekChartEl.innerHTML = '';
+    days.forEach(function(x){
+      var name = WEEKDAYS[x.date.getDay()];
+      var col = document.createElement('div');
+      // shortcut: compares every day to today's goal, so changing it recolors past days; save the goal per day if that misleads.
+      col.className = 'week-day'+(x.sessions >= goal ? ' met' : '')+(x.isToday ? ' today' : '');
+      col.title = name+', '+MONTHS[x.date.getMonth()]+' '+x.date.getDate()+': '+x.sessions+(x.sessions === 1 ? ' session, ' : ' sessions, ')+formatFocus(x.focusedSec);
+      var plot = document.createElement('div');
+      plot.className = 'week-plot';
+      var line = document.createElement('span');
+      line.className = 'week-goal-line';
+      line.style.bottom = 'calc((100% - 18px) * '+(goal/top)+')'; // 18px is .week-plot's top padding, which bars don't use
+      var count = document.createElement('span');
+      count.className = 'week-count';
+      count.textContent = x.sessions;
+      var bar = document.createElement('span');
+      bar.className = 'week-bar';
+      bar.style.height = (x.sessions/top*100)+'%';
+      var label = document.createElement('span');
+      label.className = 'week-label';
+      label.textContent = name.slice(0,3);
+      plot.appendChild(line);
+      plot.appendChild(count);
+      plot.appendChild(bar);
+      col.appendChild(plot);
+      col.appendChild(label);
+      weekChartEl.appendChild(col);
+    });
+    weekChartEl.setAttribute('aria-label', 'Sessions over the last 7 days, goal '+goal+': '+days.map(function(x){ return WEEKDAYS[x.date.getDay()].slice(0,3)+' '+x.sessions; }).join(', '));
+  }
   function renderStats(){
-    var totalMin = Math.round(stats.focusedSec/60);
-    var h = Math.floor(totalMin/60), m = totalMin%60;
-    statTodayEl.textContent = h+'h '+String(m).padStart(2,'0')+'m';
+    statTodayEl.textContent = formatFocus(stats.focusedSec);
     statSessionsEl.textContent = String(stats.sessions);
     statStreakEl.textContent = stats.streak + (stats.streak === 1 ? ' day' : ' days');
     goalProgressEl.max = goal;
     goalProgressEl.value = stats.sessions;
     goalDoneEl.textContent = String(stats.sessions);
     goalTargetEl.value = goal;
+    renderWeek();
   }
 
   startBtn.addEventListener('click', function(){ timer.running ? pause() : start(); });
@@ -1888,6 +1971,7 @@
     else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); renderStats(); }
     else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
     else if(e.key === GOAL_KEY){ goal = loadGoal(); renderStats(); }
+    else if(e.key === HISTORY_KEY){ renderWeek(); }
   });
 
   /* ---------- init ---------- */
@@ -1938,7 +2022,8 @@
   // Different so you can tell a task coming due from the hour passing without looking.
   var REMINDER_NOTES = [880, 660];
   var HOUR_NOTES = [660];
-  var REMINDER_SOUND_MS = 1500;
+  var REMINDER_RING_GAP = 1.4; // seconds
+  var REMINDER_SOUND_MS = 3000; // both rings, so the hourly chime waits for them
   var lastCheckDay = null;
   var lastCheckHHMM = null;
   var pointerDown = false;
@@ -2403,10 +2488,15 @@
     return audioCtx;
   }
 
-  function playChime(notes) {
+  function playReminderSound() {
+    playChime(REMINDER_NOTES);
+    playChime(REMINDER_NOTES, REMINDER_RING_GAP); // on the audio clock, since a background tab delays timers
+  }
+
+  function playChime(notes, delay) {
     var ctx = ensureAudio();
     if (!ctx) return;
-    var now = ctx.currentTime;
+    var now = ctx.currentTime + (delay || 0);
     notes.forEach(function (freq, i) {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
@@ -2506,7 +2596,7 @@
       fireReminder(r);
       chimed = settings.reminderSound;
     });
-    if (chimed) playChime(REMINDER_NOTES); // once, however many came due together
+    if (chimed) playReminderSound(); // once, however many came due together
 
     if (settings.hourlyChime && now.getMinutes() === 0) {
       var hourKey = tKey + '-' + pad(h);
@@ -2641,7 +2731,7 @@
 
   document.getElementById('testSoundBtn').addEventListener('click', function () {
     ensureAudio();
-    playChime(REMINDER_NOTES);
+    playReminderSound();
     if (settings.voice) setTimeout(function () { speak('This is a test reminder.'); }, 500);
     setTimeout(function () { fireHourlyChime(new Date()); }, REMINDER_SOUND_MS);
   });
