@@ -244,25 +244,16 @@
     border:none; border-bottom:1px solid var(--amber); text-align:center; outline:none;
     padding-bottom:3px; -moz-appearance:textfield;
   }
-  .edit-hint{
-    font-size:11px; color:var(--cream-dim); letter-spacing:0.06em; text-transform:uppercase;
-    margin-top:8px; opacity:0.8;
-  }
 
-  .presets{ display:flex; gap:8px; }
-  .presets button{
-    padding:4px 12px; background:none; border:1px solid var(--glass-border); border-radius:999px;
-    color:var(--cream-dim); font-size:13px; font-weight:600; cursor:pointer;
-  }
-  .presets button:hover{ color:var(--cream); border-color:rgba(245,234,212,0.3); }
-  .presets button[aria-pressed="true"]{ color:var(--amber-soft); border-color:var(--amber); }
+  .ring-actions{ display:flex; flex-direction:column; align-items:center; gap:6px; }
   .controls{ display:flex; align-items:center; gap:14px; }
   .btn{
     font-family:'Libre Franklin'; font-weight:600; font-size:15px; letter-spacing:0.01em;
     padding:12px 30px; border-radius:999px; border:1px solid transparent; cursor:pointer;
     transition:transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   }
-  .btn-primary{ background:var(--amber); color:#241708; box-shadow:0 6px 20px rgba(240,169,78,0.35); }
+  /* Wide enough for "Start focus", so the buttons don't shift under the cursor when it becomes "Pause". */
+  .btn-primary{ min-width:150px; background:var(--amber); color:#241708; box-shadow:0 6px 20px rgba(240,169,78,0.35); }
   .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 8px 24px rgba(240,169,78,0.45); }
   .btn-ghost{
     background:transparent; border-color:var(--glass-border); color:var(--cream-dim);
@@ -1072,19 +1063,15 @@
         <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="92"></circle>
       </svg>
       <div class="ring-center">
-        <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length">25:00</div>
+        <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time">25:00</div>
         <input class="digits-edit" id="digitsEdit" type="text" inputmode="numeric" aria-label="Session length in minutes and seconds">
       </div>
     </div>
-    <div class="edit-hint">Click the time to set it</div>
-    <div class="presets" id="presets">
-      <button type="button" data-minutes="25" aria-label="Set focus length to 25 minutes">25m</button>
-      <button type="button" data-minutes="50" aria-label="Set focus length to 50 minutes">50m</button>
-      <button type="button" data-minutes="90" aria-label="Set focus length to 90 minutes">90m</button>
-    </div>
-    <div class="controls">
-      <button class="btn btn-ghost" id="resetBtn">Reset</button>
-      <button class="btn btn-primary" id="startBtn">Start focus</button>
+    <div class="ring-actions">
+      <div class="controls">
+        <button class="btn btn-ghost" id="resetBtn">Reset</button>
+        <button class="btn btn-primary" id="startBtn">Start focus</button>
+      </div>
       <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
     </div>
     <div class="rain-control glass">
@@ -1326,8 +1313,6 @@
   var statTodayEl = document.getElementById('statToday');
   var statSessionsEl = document.getElementById('statSessions');
   var statStreakEl = document.getElementById('statStreak');
-  var presetsEl = document.getElementById('presets');
-  var presetBtns = presetsEl.querySelectorAll('button');
   var goalProgressEl = document.getElementById('goalProgress');
   var goalDoneEl = document.getElementById('goalDone');
   var goalTargetEl = document.getElementById('goalTarget');
@@ -1371,12 +1356,8 @@
     var frac = 1 - (timer.remaining / durationFor(timer.mode));
     ringProgress.style.strokeDashoffset = (CIRC * (1-frac)).toFixed(2);
     startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === durationFor(timer.mode) ? MODE_START_LABELS[timer.mode] : 'Resume');
-    skipBtn.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden';
+    skipBtn.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden'; // keeps its space, so the ring doesn't jump when a break starts
     renderTitle();
-    presetsEl.style.visibility = (timer.running || timer.mode !== 'focus') ? 'hidden' : 'visible';
-    presetBtns.forEach(function(btn){
-      btn.setAttribute('aria-pressed', settings.focus === btn.dataset.minutes*60 ? 'true' : 'false');
-    });
   }
   function renderTitle(){
     var base = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Locked In Room';
@@ -1609,9 +1590,6 @@
     saveTimer();
     render();
   }
-  presetBtns.forEach(function(btn){
-    btn.addEventListener('click', function(){ setSessionLength(btn.dataset.minutes*60); });
-  });
   digitsEl.addEventListener('click', startEditDigits);
   digitsEl.addEventListener('keydown', function(e){
     if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startEditDigits(); }
