@@ -394,9 +394,9 @@
   .reminder-toggle:hover .reminder-chevron{ color:var(--amber-soft); }
   .nudge-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid var(--glass-border); }
   .nudge-row[hidden]{ display:none; }
-  /* Out of flow beside the timer, so it doesn't push the centred hero down. */
+  /* Out of flow beside the timer, so it doesn't push the centred hero down. Centred over the lamp's glow: the lamp's left edge plus 120px, less the page margin the top bar starts from. */
   @media (min-width: 860px){
-    .reminder-bell{ position:absolute; top:100%; left:0; margin-top:12px; width:min(300px,28vw); }
+    .reminder-bell{ position:absolute; top:100%; left:calc(6vw + 120px - clamp(16px,3vw,40px)); transform:translateX(-50%); margin-top:12px; width:min(300px,28vw); }
   }
   /* Scrolls inside the card, so a long list can't run down over the timer. */
   .overdue-list{
@@ -1002,7 +1002,7 @@
     position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:60;
     width:min(92vw,440px); display:flex; flex-direction:column; gap:8px;
   }
-  /* In line with the reminder card, in the free space beside the clock. */
+  /* In the free space beside the clock. */
   @media (min-width: 860px){
     .toasts{
       top:clamp(16px,3vh,36px); left:clamp(16px,3vw,40px); transform:none;
