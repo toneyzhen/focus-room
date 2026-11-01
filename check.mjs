@@ -17,7 +17,7 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration'];
+const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'addNoise', 'parseDuration'];
 const rulesAt = (when) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
@@ -79,6 +79,12 @@ const everyTwenty = 20 * 60000;
 assert.equal(evening.nextNudgeAt(1000, everyTwenty, 1000), 1000 + everyTwenty, 'the next ring after one that just came due');
 assert.equal(evening.nextNudgeAt(1000, everyTwenty, 999), 1000, 'not due yet, so no change');
 assert.equal(evening.nextNudgeAt(1000, everyTwenty, 1000 + 3.5 * everyTwenty), 1000 + 4 * everyTwenty, 'missed rings are skipped, staying on the beat');
+
+// Noises always play before anything waiting to be read out, and in the order they came.
+const sounds = [{ notes: [1] }, { text: 'first words' }, { text: 'more words' }];
+evening.addNoise(sounds, [2]);
+evening.addNoise(sounds, [3]);
+assert.deepEqual(sounds.map((s) => s.text || s.notes[0]), [1, 2, 3, 'first words', 'more words']);
 
 // Typing a timer length.
 assert.equal(evening.parseDuration('25'), 1500);

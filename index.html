@@ -776,6 +776,10 @@
 
   .repeat-toggle:hover { color: var(--brass); }
 
+  .reminder-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+  label.read-aloud { font-size: 12px; gap: 5px; }
+  label.read-aloud input { width: 13px; height: 13px; }
+
   .pill {
     font-size: 11px;
     font-weight: 600;
@@ -1211,6 +1215,10 @@
             <input type="checkbox" id="repeatInput">
             Repeat daily
           </label>
+          <label class="checkbox">
+            <input type="checkbox" id="readAloudInput">
+            Read aloud
+          </label>
           <button type="button" class="ghost-btn" id="addCancelBtn">Cancel</button>
           <button type="submit" class="primary-btn">Add reminder</button>
         </div>
@@ -1311,7 +1319,7 @@
     <div class="field-row">
       <label class="checkbox">
         <input type="checkbox" id="voiceToggle">
-        Read reminders out loud
+        Read the repeating timer out loud
       </label>
     </div>
     <div class="field-row">
@@ -2020,6 +2028,7 @@
   var form = document.getElementById('addForm');
   var labelInput = document.getElementById('labelInput');
   var repeatInput = document.getElementById('repeatInput');
+  var readAloudInput = document.getElementById('readAloudInput');
   var hourlyChimeToggle = document.getElementById('hourlyChimeToggle');
   var reminderSoundToggle = document.getElementById('reminderSoundToggle');
   var voiceToggle = document.getElementById('voiceToggle');
@@ -2037,11 +2046,11 @@
   // Different so you can tell a task coming due from the hour passing without looking.
   var REMINDER_NOTES = [880, 660];
   var HOUR_NOTES = [660];
-  var REMINDER_RING_GAP = 1.4; // seconds
-  var REMINDER_SOUND_MS = 3000; // both rings, so the hourly chime waits for them
+  var soundQueue = [];
+  var soundPlaying = false;
+  var currentUtterance = null; // held here because some browsers drop an unreferenced one and never say it ended
   var NUDGE_KEY = 'lockedInRoom.nudge.v1';
   var NUDGE_NOTES = [784, 988];
-  var NUDGE_SOUND_MS = 1500;
   var nudge = loadNudge();
   var lastCheckDay = null;
   var lastCheckHHMM = null;
@@ -2075,7 +2084,7 @@
         return { hourlyChime: !!parsed.hourlyChime, reminderSound: !!parsed.reminderSound, voice: !!parsed.voice };
       }
     } catch (e) {}
-    // Reading a reminder out loud can say something private, so it waits for an opt-in.
+    // Reading text out loud can say something private, so it waits for an opt-in.
     return { hourlyChime: true, reminderSound: true, voice: false };
   }
 
@@ -2424,6 +2433,20 @@
         render();
       });
       meta.appendChild(toggle);
+      var readAloud = document.createElement('label');
+      readAloud.className = 'checkbox read-aloud';
+      var readAloudBox = document.createElement('input');
+      readAloudBox.type = 'checkbox';
+      readAloudBox.className = 'read-aloud-box';
+      readAloudBox.checked = !!r.readAloud;
+      readAloudBox.setAttribute('aria-label', 'Read ' + r.label + ' aloud');
+      readAloudBox.addEventListener('change', function () {
+        r.readAloud = readAloudBox.checked;
+        saveReminders();
+      });
+      readAloud.appendChild(readAloudBox);
+      readAloud.appendChild(document.createTextNode('Read aloud'));
+      meta.appendChild(readAloud);
       main.appendChild(label);
       main.appendChild(meta);
 
@@ -2526,15 +2549,45 @@
     return audioCtx;
   }
 
-  function playReminderSound() {
-    playChime(REMINDER_NOTES);
-    playChime(REMINDER_NOTES, REMINDER_RING_GAP); // on the audio clock, since a background tab delays timers
+  // Every bell sound goes through this queue and plays one at a time: noises first, then anything to read out.
+  function addNoise(queue, notes) {
+    var firstSpeech = queue.findIndex(function (item) { return item.text; });
+    queue.splice(firstSpeech === -1 ? queue.length : firstSpeech, 0, { notes: notes });
   }
 
-  function playChime(notes, delay) {
+  function queueNoise(notes) {
+    addNoise(soundQueue, notes);
+    setTimeout(playNextSound); // later, so everything due in this check is queued and ordered first
+  }
+
+  function queueSpeech(text) {
+    soundQueue.push({ text: text });
+    setTimeout(playNextSound);
+  }
+
+  function playNextSound() {
+    if (soundPlaying || !soundQueue.length) return;
+    soundPlaying = true;
+    var item = soundQueue.shift();
+    var finished = false;
+    function done() {
+      if (finished) return;
+      finished = true;
+      soundPlaying = false;
+      playNextSound();
+    }
+    if (item.notes) {
+      playChime(item.notes);
+      setTimeout(done, (item.notes.length - 1) * 220 + 950 + 350); // the extra covers audio starting a little late
+    } else {
+      speak(item.text, done);
+    }
+  }
+
+  function playChime(notes) {
     var ctx = ensureAudio();
     if (!ctx) return;
-    var now = ctx.currentTime + (delay || 0);
+    var now = ctx.currentTime;
     notes.forEach(function (freq, i) {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
@@ -2550,25 +2603,29 @@
     });
   }
 
-  function speak(text) {
-    if (!('speechSynthesis' in window)) return;
+  function speak(text, done) {
+    if (!('speechSynthesis' in window)) { done(); return; }
     try {
       var utter = new SpeechSynthesisUtterance(text);
       utter.rate = 1;
       utter.pitch = 1;
+      utter.onend = done;
+      utter.onerror = done;
+      currentUtterance = utter;
       window.speechSynthesis.speak(utter);
-    } catch (e) {}
+      setTimeout(done, 15000 + text.length * 150); // a voice that never reports back can't block the sounds behind it
+    } catch (e) { done(); }
   }
 
   function fireHourlyChime(now) {
-    playChime(HOUR_NOTES);
+    queueNoise(HOUR_NOTES);
     var h = now.getHours();
     var h12 = h % 12; if (h12 === 0) h12 = 12;
     var ampm = h >= 12 ? 'PM' : 'AM';
-    setTimeout(function () { speak("It's " + h12 + ' ' + ampm); }, 500);
+    queueSpeech("It's " + h12 + ' ' + ampm);
   }
 
-  // Sound is opt-in and the drawer is usually closed, so without this a reminder
+  // Sound can be off and the drawer is usually closed, so without this a reminder
   // could fire with no sign at all. It can go away because the bell keeps listing it.
   function showToast(text, id, keep) {
     var toast = document.createElement('div');
@@ -2595,7 +2652,7 @@
 
   function fireReminder(r) {
     showToast(r.label, r.id);
-    if (settings.voice) setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
+    if (r.readAloud) queueSpeech('Reminder: ' + spokenLabel(r.label));
   }
 
   function loadNudge() {
@@ -2678,15 +2735,16 @@
       fireReminder(r);
       chimed = settings.reminderSound;
     });
-    if (chimed) playReminderSound(); // once, however many came due together
-    var soundDelay = chimed ? REMINDER_SOUND_MS : 0; // each sound waits for the one before it
+    if (chimed) { // rings twice, however many came due together
+      queueNoise(REMINDER_NOTES);
+      queueNoise(REMINDER_NOTES);
+    }
 
     if (nudge.on && Date.now() >= nudge.nextAt) {
       if (!firstCheck) {
         showToast(nudge.label, 'nudge');
-        playChime(NUDGE_NOTES, soundDelay / 1000);
-        soundDelay += NUDGE_SOUND_MS;
-        if (settings.voice) speak(spokenLabel(nudge.label));
+        queueNoise(NUDGE_NOTES);
+        if (settings.voice) queueSpeech(spokenLabel(nudge.label));
       }
       nudge.nextAt = nextNudgeAt(nudge.nextAt, nudge.minutes * 60000, Date.now());
       saveNudge();
@@ -2697,7 +2755,7 @@
       var hourKey = tKey + '-' + pad(h);
       if (lastHourlyChimeKey !== hourKey) {
         lastHourlyChimeKey = hourKey;
-        setTimeout(function () { fireHourlyChime(now); }, soundDelay);
+        fireHourlyChime(now);
       }
     }
 
@@ -2835,9 +2893,10 @@
 
   document.getElementById('testSoundBtn').addEventListener('click', function () {
     ensureAudio();
-    playReminderSound();
-    if (settings.voice) setTimeout(function () { speak('This is a test reminder.'); }, 500);
-    setTimeout(function () { fireHourlyChime(new Date()); }, REMINDER_SOUND_MS);
+    queueNoise(REMINDER_NOTES);
+    queueNoise(REMINDER_NOTES);
+    queueSpeech('This is a test reminder.');
+    fireHourlyChime(new Date());
   });
 
   // --- Settings dialog (sound + voice toggles live behind the gear icon,
@@ -2962,6 +3021,7 @@
       skipDate: skipDateFor(time),
       label: label,
       repeat: repeatInput.checked,
+      readAloud: readAloudInput.checked,
       lastFiredKey: null,
       completed: false,
       completedDateKey: null
@@ -2996,7 +3056,7 @@
 
   function toExportData() {
     return reminders.map(function (r) {
-      return { time: r.time, label: r.label, repeat: !!r.repeat };
+      return { time: r.time, label: r.label, repeat: !!r.repeat, readAloud: !!r.readAloud };
     });
   }
 
@@ -3095,6 +3155,7 @@
         skipDate: skipDateFor(item.time),
         label: label,
         repeat: !!item.repeat,
+        readAloud: !!item.readAloud,
         lastFiredKey: null,
         completed: false,
         completedDateKey: null
