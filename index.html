@@ -107,6 +107,24 @@
       linear-gradient(90deg, rgba(245,234,212,0.10) 0 2px, transparent 2px) 50% 0/100% 100%;
     box-shadow: inset 0 0 30px rgba(0,0,0,0.35);
   }
+  .curtain-rod{ position:absolute; top:0; left:0; right:0; height:5px; background:#2c2119; }
+  /* Tied back partway down. The stripes are the fabric's folds. */
+  .curtain{
+    position:absolute; top:0; bottom:0; width:17%;
+    background:repeating-linear-gradient(90deg, #6e3a2b 0 6px, #8a4c36 6px 12px, #5f3125 12px 16px);
+  }
+  .curtain-left{ left:0; clip-path:polygon(0 0, 100% 0, 100% 28%, 58% 62%, 70% 100%, 0 100%); }
+  .curtain-right{ right:0; clip-path:polygon(0 0, 100% 0, 100% 100%, 30% 100%, 42% 62%, 0 28%); }
+  .lights{ position:absolute; top:5px; left:0; right:0; height:9%; }
+  .lights svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .lights polyline{ fill:none; stroke:#2c2119; stroke-width:1.5; vector-effect:non-scaling-stroke; }
+  .bulb{
+    position:absolute; width:6px; height:6px; margin:-1px 0 0 -3px; border-radius:50%;
+    background:#ffd9a0; box-shadow:0 0 8px 3px rgba(255,190,110,0.65);
+    animation:twinkle 4s ease-in-out infinite;
+  }
+  .reduced-motion .bulb{ animation:none !important; }
+  @keyframes twinkle{ 0%,100%{ opacity:1; } 50%{ opacity:0.65; } }
   .sill{
     position:absolute; left:-14px; right:-14px; bottom:-10px; height:16px;
     background:linear-gradient(180deg,#4a382a,#2c2119);
@@ -143,6 +161,10 @@
   .books .book:nth-child(1){ transform:rotate(-1.5deg); }
   .books .book:nth-child(3){ transform:rotate(1.5deg) translateX(1px); }
 
+  .cat{ position:absolute; left:24%; bottom:100%; transform:translateY(8px); width:96px; }
+  .cat-breath{ transform-box:fill-box; transform-origin:50% 100%; animation:breathe 4.5s ease-in-out infinite; }
+  .reduced-motion .cat-breath{ animation:none !important; }
+  @keyframes breathe{ 0%,100%{ transform:scaleY(1); } 50%{ transform:scaleY(1.045); } }
   .mug{ position:absolute; right:9%; bottom:100%; transform:translateY(6px); width:34px; }
   .steam span{
     position:absolute; bottom:100%; width:6px; height:22px; border-radius:50%;
@@ -184,17 +206,18 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .rain-control{ display:flex; align-items:center; gap:12px; padding:0 20px; border-radius:999px; }
+  .sound-controls{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  .sound-control{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 20px; border-radius:999px; }
   /* In the window's bottom-right corner (offsets mirror .window), once the timer controls can't run into it. */
   @media (min-width: 920px){
-    .rain-control{ position:fixed; right:calc(7vw + 14px); bottom:calc(38vh + 14px); }
+    .sound-controls{ position:fixed; right:calc(7vw + 14px); bottom:calc(38vh + 14px); flex-direction:column; }
   }
-  .rain-control button{
+  .sound-control button{
     padding:10px 0; background:none; border:none; color:var(--cream); font-size:15px; font-weight:600; white-space:nowrap; cursor:pointer;
   }
-  .rain-control button:hover, .rain-control button[aria-pressed="true"]{ color:var(--amber-soft); }
-  .rain-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
-  .rain-control button[aria-pressed="false"] + input{ opacity:0.5; }
+  .sound-control button:hover, .sound-control button[aria-pressed="true"]{ color:var(--amber-soft); }
+  .sound-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
+  .sound-control button[aria-pressed="false"] + input{ opacity:0.5; }
   .clock-pill{
     display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:2px 12px;
     align-self:center; max-width:100%;
@@ -351,6 +374,7 @@
 
   @media (max-width: 640px){
     .window{ display:none; }
+    .cat{ display:none; }
     .stats-row{ flex-wrap:wrap; }
   }
 
@@ -1001,6 +1025,12 @@
     </div>
     <canvas class="rain" id="rainCanvas"></canvas>
     <div class="windowpane"></div>
+    <div class="curtain curtain-left"></div>
+    <div class="curtain curtain-right"></div>
+    <div class="curtain-rod"></div>
+    <div class="lights" id="lights">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline id="lightsWire"/></svg>
+    </div>
     <div class="sill">
       <svg class="plant" viewBox="0 0 70 90">
         <rect x="18" y="60" width="34" height="28" rx="3" fill="#4a382a"/>
@@ -1023,6 +1053,19 @@
         <ellipse cx="30" cy="230" rx="26" ry="6" fill="#1c140f"/>
       </svg>
     </div>
+    <svg class="cat" viewBox="0 0 100 58">
+      <ellipse cx="48" cy="55" rx="46" ry="3" fill="#1c140f" opacity="0.6"/>
+      <g class="cat-breath">
+        <ellipse cx="40" cy="36" rx="35" ry="20" fill="#b9773f"/>
+        <path d="M24 20 q3 7 1 13 M36 16 q3 7 1 14 M48 16 q3 7 1 14" fill="none" stroke="#8f5a2e" stroke-width="3" stroke-linecap="round"/>
+        <path d="M62 30 L63 13 L73 24 Z M76 24 L86 13 L87 30 Z" fill="#b9773f"/>
+        <path d="M65 26 L65 18 L70 24 Z M79 24 L84 18 L84 26 Z" fill="#e0a06f"/>
+        <circle cx="74" cy="37" r="15" fill="#c4834a"/>
+        <path d="M65 36 q3 3 6 0 M77 36 q3 3 6 0" fill="none" stroke="#3a2415" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M72.5 41 L75.5 41 L74 43 Z" fill="#7a3f2c"/>
+      </g>
+      <path d="M8 44 C2 56, 34 58, 58 53" fill="none" stroke="#8f5a2e" stroke-width="7" stroke-linecap="round"/>
+    </svg>
     <div class="books">
       <div class="book" style="width:54px;height:14px;background:#8a4a3a;"></div>
       <div class="book" style="width:54px;height:12px;background:#3f5c52;"></div>
@@ -1074,9 +1117,15 @@
       </div>
       <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
     </div>
-    <div class="rain-control glass">
-      <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
-      <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume">
+    <div class="sound-controls">
+      <div class="sound-control glass">
+        <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
+        <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume">
+      </div>
+      <div class="sound-control glass">
+        <button id="fireBtn" type="button" aria-pressed="false">🔥 Fire</button>
+        <input id="fireVolume" type="range" min="0" max="1" step="0.01" aria-label="Fire volume">
+      </div>
     </div>
 
     <div class="todo-card glass">
@@ -1482,55 +1531,83 @@
     }catch(e){}
   }
 
-  /* ---------- rain sound (generated noise, so there's no audio file to load) ---------- */
-  var RAIN_VOLUME_KEY = 'lockedInRoom.rainVolume.v1';
-  var rainBtn = document.getElementById('rainBtn');
-  var rainVolume = document.getElementById('rainVolume');
-  var rainCtx = null, rainGain = null, rainInput = null, rainBuffer = null, rainSource = null;
-  rainVolume.value = loadJSON(RAIN_VOLUME_KEY, 0.5);
-
-  function rainLevel(){ return rainVolume.value * 0.35; } // full-scale noise is painfully loud
-  function setUpRainAudio(){
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    rainCtx = new Ctx();
-    rainBuffer = rainCtx.createBuffer(1, rainCtx.sampleRate*4, rainCtx.sampleRate);
-    var samples = rainBuffer.getChannelData(0);
-    for(var i=0;i<samples.length;i++){ samples[i] = Math.random()*2 - 1; }
-    rainInput = rainCtx.createBiquadFilter();
-    rainInput.type = 'highpass'; rainInput.frequency.value = 400;
-    var lowpass = rainCtx.createBiquadFilter();
-    lowpass.type = 'lowpass'; lowpass.frequency.value = 7000;
-    rainGain = rainCtx.createGain();
-    rainGain.gain.value = 0;
-    rainInput.connect(lowpass); lowpass.connect(rainGain); rainGain.connect(rainCtx.destination);
+  /* ---------- rain and fire sounds (generated noise, so there's no audio file to load) ---------- */
+  var soundCtx = null;
+  function ambientSound(o){
+    var gain = null, input = null, buffer = null, source = null;
+    o.volume.value = loadJSON(o.key, 0.5);
+    function level(){ return o.volume.value * o.loudness; }
+    function setUp(){
+      if(!soundCtx){ soundCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      buffer = soundCtx.createBuffer(1, soundCtx.sampleRate*o.seconds, soundCtx.sampleRate);
+      o.fill(buffer.getChannelData(0), soundCtx.sampleRate);
+      input = soundCtx.createBiquadFilter();
+      input.type = 'highpass'; input.frequency.value = o.highpass;
+      var lowpass = soundCtx.createBiquadFilter();
+      lowpass.type = 'lowpass'; lowpass.frequency.value = o.lowpass;
+      gain = soundCtx.createGain();
+      gain.gain.value = 0;
+      input.connect(lowpass); lowpass.connect(gain); gain.connect(soundCtx.destination);
+    }
+    function start(){
+      if(!buffer) setUp();
+      soundCtx.resume();
+      source = soundCtx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(input);
+      source.start();
+      gain.gain.setTargetAtTime(level(), soundCtx.currentTime, 0.3);
+    }
+    function stop(){
+      gain.gain.setTargetAtTime(0, soundCtx.currentTime, 0.1);
+      source.stop(soundCtx.currentTime + 0.5);
+      source = null;
+    }
+    o.button.addEventListener('click', function(){
+      var turnOn = !source;
+      try{
+        if(turnOn) start(); else stop();
+      }catch(e){ return; } // no Web Audio here, so the button just stays off
+      o.button.setAttribute('aria-pressed', turnOn ? 'true' : 'false');
+      if(o.onToggle) o.onToggle(turnOn);
+    });
+    o.volume.addEventListener('input', function(){
+      if(source) gain.gain.setTargetAtTime(level(), soundCtx.currentTime, 0.05);
+    });
+    o.volume.addEventListener('change', function(){ saveJSON(o.key, Number(o.volume.value)); });
   }
-  function startRain(){
-    if(!rainCtx) setUpRainAudio();
-    rainCtx.resume();
-    rainSource = rainCtx.createBufferSource();
-    rainSource.buffer = rainBuffer;
-    rainSource.loop = true;
-    rainSource.connect(rainInput);
-    rainSource.start();
-    rainGain.gain.setTargetAtTime(rainLevel(), rainCtx.currentTime, 0.3);
-  }
-  function stopRain(){
-    rainGain.gain.setTargetAtTime(0, rainCtx.currentTime, 0.1);
-    rainSource.stop(rainCtx.currentTime + 0.5);
-    rainSource = null;
-  }
-  rainBtn.addEventListener('click', function(){
-    var turnOn = !rainSource;
-    try{
-      if(turnOn) startRain(); else stopRain();
-    }catch(e){ return; } // no Web Audio here, so the button just stays off
-    rainBtn.setAttribute('aria-pressed', turnOn ? 'true' : 'false');
-    document.querySelector('.window').classList.toggle('raining', turnOn);
+  ambientSound({
+    button: document.getElementById('rainBtn'), volume: document.getElementById('rainVolume'), key: 'lockedInRoom.rainVolume.v1',
+    loudness: 0.35, // full-scale noise is painfully loud
+    seconds: 4, highpass: 400, lowpass: 7000,
+    fill: function(samples){
+      for(var i=0;i<samples.length;i++){ samples[i] = Math.random()*2 - 1; }
+    },
+    onToggle: function(on){ document.querySelector('.window').classList.toggle('raining', on); }
   });
-  rainVolume.addEventListener('input', function(){
-    if(rainSource) rainGain.gain.setTargetAtTime(rainLevel(), rainCtx.currentTime, 0.05);
+  ambientSound({
+    button: document.getElementById('fireBtn'), volume: document.getElementById('fireVolume'), key: 'lockedInRoom.fireVolume.v1',
+    loudness: 1.2, // quieter per sample than rain's white noise, so it needs more to match
+    seconds: 12, highpass: 50, lowpass: 5000,
+    // A low rumble with short decaying pops scattered through it.
+    fill: function(samples, rate){
+      var last = 0, i;
+      for(i=0;i<samples.length;i++){
+        last = (last + 0.02*(Math.random()*2 - 1)) / 1.02;
+        samples[i] = last * 1.2;
+      }
+      for(var pop=0;pop<70;pop++){
+        var size = Math.random();
+        var len = Math.floor(rate*(0.002 + size*size*0.02));
+        var at = Math.floor(Math.random()*(samples.length - len));
+        for(i=0;i<len;i++){
+          var fade = 1 - i/len;
+          samples[at+i] += (0.15 + size*size*0.6) * (Math.random()*2 - 1) * fade*fade;
+        }
+      }
+    }
   });
-  rainVolume.addEventListener('change', function(){ saveJSON(RAIN_VOLUME_KEY, Number(rainVolume.value)); });
 
   function renderStats(){
     var totalMin = Math.round(stats.focusedSec/60);
@@ -1746,6 +1823,20 @@
       s.style.top = (Math.random()*70)+'%';
       s.style.opacity = (0.3+Math.random()*0.7).toFixed(2);
       stars.appendChild(s);
+    }
+    // String lights: three swags of wire along the top of the window, with bulbs hanging on them.
+    function swagY(t){ return 12 + 78*Math.abs(Math.sin(3*Math.PI*t)); }
+    var wire = [];
+    for(var w=0;w<=90;w++){ wire.push((w/90*100).toFixed(1)+','+swagY(w/90).toFixed(1)); }
+    document.getElementById('lightsWire').setAttribute('points', wire.join(' '));
+    var lights = document.getElementById('lights');
+    for(var b=1;b<16;b++){
+      var bulb = document.createElement('span');
+      bulb.className = 'bulb';
+      bulb.style.left = (b/16*100)+'%';
+      bulb.style.top = swagY(b/16)+'%';
+      bulb.style.animationDelay = (-b*0.7)+'s';
+      lights.appendChild(bulb);
     }
     var cloudsEl = document.getElementById('clouds');
     for(var c=0;c<3;c++){
