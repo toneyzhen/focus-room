@@ -178,7 +178,13 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .topbar-row{ display:flex; flex-wrap:wrap; align-items:stretch; gap:12px; }
+  .topbar-row{ display:grid; justify-items:center; gap:12px; width:100%; }
+  /* Equal side columns keep the clock dead centre whatever width the rain control is. */
+  @media (min-width: 761px){
+    .topbar-row{ grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); }
+    .clock-pill{ grid-column:2; }
+    .rain-control{ justify-self:start; }
+  }
   .rain-control{ display:flex; align-items:center; gap:10px; padding:0 16px; border-radius:999px; }
   .rain-control button{
     padding:10px 0; background:none; border:none; color:var(--cream-dim); font-size:14px; white-space:nowrap; cursor:pointer;
@@ -968,6 +974,13 @@
   .toasts{
     position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:60;
     width:min(92vw,440px); display:flex; flex-direction:column; gap:8px;
+  }
+  /* Lines up with the top bar's left edge, in the free space beside the clock. */
+  @media (min-width: 761px){
+    .toasts{
+      top:clamp(16px,3vh,36px); left:max(clamp(16px,3vw,40px), (100vw - 1100px) / 2); transform:none;
+      width:min(300px,28vw);
+    }
   }
   .toast{
     display:flex; align-items:flex-start; gap:10px; padding:12px 14px;
