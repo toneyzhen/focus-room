@@ -2388,8 +2388,8 @@
     setTimeout(function () { speak("It's " + h12 + ' ' + ampm); }, 500);
   }
 
-  // Always on screen: sound is opt-in and the drawer is usually closed, so
-  // without this a reminder could fire with no sign at all.
+  // Sound is opt-in and the drawer is usually closed, so without this a reminder
+  // could fire with no sign at all. It can go away because the bell keeps listing it.
   function showToast(text, id) {
     var toast = document.createElement('div');
     toast.className = 'toast';
@@ -2406,6 +2406,7 @@
     toast.appendChild(msg);
     toast.appendChild(dismiss);
     document.getElementById('toasts').appendChild(toast);
+    setTimeout(function () { toast.remove(); }, 8000);
   }
 
   function fireReminder(r) {
