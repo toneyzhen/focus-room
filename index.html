@@ -1227,21 +1227,27 @@
       <h2 id="settingsTitle">Sound &amp; voice</h2>
       <button class="modal-close" id="settingsCloseBtn" type="button" aria-label="Close">×</button>
     </div>
-    <p class="panel-hint">Both are off until you turn them on — your choice is remembered. Reminders always show on screen.</p>
-    <div class="field-row">
-      <label class="checkbox">
-        <input type="checkbox" id="hourlyChimeToggle">
-        Chime at the top of every hour
-      </label>
-    </div>
+    <p class="panel-hint">Your choices are remembered. Reminders always show on screen. Browsers stay silent until you've clicked somewhere on the page.</p>
     <div class="field-row">
       <label class="checkbox">
         <input type="checkbox" id="reminderSoundToggle">
-        Sound + voice when a reminder fires
+        Sound when a reminder comes due
       </label>
     </div>
     <div class="field-row">
-      <button class="link-btn" id="testSoundBtn" type="button">Test sound + voice</button>
+      <label class="checkbox">
+        <input type="checkbox" id="hourlyChimeToggle">
+        Chime and say the time at the top of every hour
+      </label>
+    </div>
+    <div class="field-row">
+      <label class="checkbox">
+        <input type="checkbox" id="voiceToggle">
+        Read reminders out loud
+      </label>
+    </div>
+    <div class="field-row">
+      <button class="link-btn" id="testSoundBtn" type="button">Test sounds</button>
     </div>
   </div>
 </div>
@@ -1917,6 +1923,7 @@
   var repeatInput = document.getElementById('repeatInput');
   var hourlyChimeToggle = document.getElementById('hourlyChimeToggle');
   var reminderSoundToggle = document.getElementById('reminderSoundToggle');
+  var voiceToggle = document.getElementById('voiceToggle');
 
   var reminders = loadReminders();
   var settings = loadSettings();
@@ -1928,6 +1935,9 @@
   var openTimePickerSelects = 0;
   var lastRenderedMinute = null;
   var MISSED = -1e6; // sorts ahead of any real overdue time
+  // Different so you can tell a task coming due from the hour passing without looking.
+  var REMINDER_NOTES = [880, 660];
+  var HOUR_NOTES = [660];
   var lastCheckDay = null;
   var lastCheckHHMM = null;
   var pointerDown = false;
@@ -1957,11 +1967,11 @@
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        return { hourlyChime: !!parsed.hourlyChime, reminderSound: !!parsed.reminderSound };
+        return { hourlyChime: !!parsed.hourlyChime, reminderSound: !!parsed.reminderSound, voice: !!parsed.voice };
       }
     } catch (e) {}
-    // Off by default until the person opts in.
-    return { hourlyChime: false, reminderSound: false };
+    // Reading a reminder out loud can say something private, so it waits for an opt-in.
+    return { hourlyChime: true, reminderSound: true, voice: false };
   }
 
   function saveSettings() {
@@ -2392,11 +2402,11 @@
     return audioCtx;
   }
 
-  function playChime() {
+  function playChime(notes) {
     var ctx = ensureAudio();
     if (!ctx) return;
     var now = ctx.currentTime;
-    [880, 660].forEach(function (freq, i) {
+    notes.forEach(function (freq, i) {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.type = 'sine';
@@ -2422,7 +2432,7 @@
   }
 
   function fireHourlyChime(now) {
-    playChime();
+    playChime(HOUR_NOTES);
     var h = now.getHours();
     var h12 = h % 12; if (h12 === 0) h12 = 12;
     var ampm = h >= 12 ? 'PM' : 'AM';
@@ -2456,10 +2466,8 @@
 
   function fireReminder(r) {
     showToast(r.label, r.id);
-    if (settings.reminderSound) {
-      playChime();
-      setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
-    }
+    if (settings.reminderSound) playChime(REMINDER_NOTES);
+    if (settings.voice) setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
   }
 
   // Did this time come up since the last check? Sleep or a throttled tab can skip its exact minute.
@@ -2609,6 +2617,12 @@
 
   hourlyChimeToggle.checked = settings.hourlyChime;
   reminderSoundToggle.checked = settings.reminderSound;
+  voiceToggle.checked = settings.voice;
+
+  voiceToggle.addEventListener('change', function () {
+    settings.voice = voiceToggle.checked;
+    saveSettings();
+  });
 
   hourlyChimeToggle.addEventListener('change', function () {
     settings.hourlyChime = hourlyChimeToggle.checked;
@@ -2624,8 +2638,9 @@
 
   document.getElementById('testSoundBtn').addEventListener('click', function () {
     ensureAudio();
-    playChime();
-    setTimeout(function () { speak('This is a test reminder.'); }, 500);
+    playChime(REMINDER_NOTES);
+    if (settings.voice) setTimeout(function () { speak('This is a test reminder.'); }, 500);
+    setTimeout(function () { fireHourlyChime(new Date()); }, 1200);
   });
 
   // --- Settings dialog (sound + voice toggles live behind the gear icon,
