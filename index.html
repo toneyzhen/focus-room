@@ -389,7 +389,6 @@
   .reminder-toggle svg{ width:15px; height:15px; flex-shrink:0; color:var(--amber); }
   .reminder-title{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:var(--cream-dim); }
   .reminder-status{ flex:1; font-size:12px; text-align:right; color:var(--cream-dim); }
-  .reminder-status.overdue{ color:#f0a08a; }
   .reminder-chevron{ font-size:16px; line-height:1; color:var(--cream-dim); }
   .reminder-toggle:hover .reminder-chevron{ color:var(--amber-soft); }
   .nudge-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid var(--glass-border); }
@@ -410,11 +409,13 @@
   .bell-item-text{ min-width:0; }
   .bell-item-label{ display:block; font-size:14px; line-height:1.35; color:var(--cream); white-space:pre-wrap; overflow-wrap:anywhere; }
   .bell-item-when{ display:block; margin-top:3px; font-size:12px; color:var(--amber-soft); }
-  .bell-item-when.overdue{ color:#f0a08a; }
-  .next-up-heading{
+  .bell-heading{
     margin-bottom:-6px; padding-top:12px; border-top:1px solid var(--glass-border);
     font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:var(--cream-dim);
   }
+  .bell-heading:first-child{ padding-top:0; border-top:none; } /* the list already has a line above it */
+  .bell-heading.overdue{ color:#f0a08a; }
+  .bell-heading-when{ margin-left:2px; font-size:12px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--amber-soft); }
 
   .bell{
     color-scheme:dark;
@@ -2800,13 +2801,12 @@
     overdue.sort(byStart);
     started.sort(byStart);
     document.dispatchEvent(new CustomEvent('overduechange', { detail: overdue.length }));
-    var anyOverdue = overdue.length > 0;
-    reminderStatusEl.textContent = anyOverdue ? overdue.length + ' overdue' : (upcoming || started.length ? '' : 'Nothing coming up');
-    reminderStatusEl.classList.toggle('overdue', anyOverdue);
+    reminderStatusEl.textContent = overdue.length || started.length || upcoming ? '' : 'Nothing coming up';
 
     // This runs every second, and rebuilding the checkboxes that often would lose clicks and focus.
-    var shown = overdue.concat(started, upcoming ? [upcoming] : []);
-    var signature = JSON.stringify(shown.map(function (r) { return [r.id, r.label, describeReminder(r, reminders)]; }));
+    function idAndLabel(r) { return [r.id, r.label]; }
+    var nextWhen = upcoming ? describeCountdown(sortKey(upcoming)) : '';
+    var signature = JSON.stringify([overdue.map(idAndLabel), started.map(idAndLabel), upcoming && idAndLabel(upcoming), nextWhen]);
     if (signature === lastBellSignature) return;
     lastBellSignature = signature;
 
@@ -2816,11 +2816,14 @@
     var scrolled = overdueListEl.scrollTop;
 
     overdueListEl.innerHTML = '';
+    if (overdue.length) addBellHeading('Overdue', '', 'overdue');
     overdue.forEach(addBellItem);
-    if (anyOverdue && started.length) addBellHeading('Now');
+    if (started.length) addBellHeading('Now');
     started.forEach(addBellItem);
-    if ((anyOverdue || started.length) && upcoming) addBellHeading('Next up');
-    if (upcoming) addBellItem(upcoming);
+    if (upcoming) {
+      addBellHeading('Next up', nextWhen);
+      addBellItem(upcoming);
+    }
     overdueListEl.scrollTop = scrolled;
 
     if (refocusId) {
@@ -2830,10 +2833,16 @@
     }
   }
 
-  function addBellHeading(text) {
+  function addBellHeading(text, when, kind) {
     var heading = document.createElement('span');
-    heading.className = 'next-up-heading';
-    heading.textContent = text;
+    heading.className = 'bell-heading' + (kind ? ' ' + kind : '');
+    heading.textContent = text + ' ';
+    if (when) {
+      var time = document.createElement('span');
+      time.className = 'bell-heading-when';
+      time.textContent = when;
+      heading.appendChild(time);
+    }
     overdueListEl.appendChild(heading);
   }
 
@@ -2855,11 +2864,7 @@
     var label = document.createElement('span');
     label.className = 'bell-item-label';
     label.textContent = r.label;
-    var when = document.createElement('span');
-    when.className = 'bell-item-when' + (isOverdue(r, reminders) ? ' overdue' : '');
-    when.textContent = describeReminder(r, reminders);
     text.appendChild(label);
-    text.appendChild(when);
     item.appendChild(check);
     item.appendChild(text);
     overdueListEl.appendChild(item);
