@@ -178,30 +178,28 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .topbar-row{ display:grid; justify-items:center; gap:12px; width:100%; }
-  /* Equal side columns keep the clock dead centre whatever width the rain control is. */
-  @media (min-width: 761px){
-    .topbar-row{ grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); }
-    .clock-pill{ grid-column:2; }
-    .rain-control{ justify-self:start; }
-  }
   .rain-control{ display:flex; align-items:center; gap:10px; padding:0 16px; border-radius:999px; }
+  /* In the desk's empty corner once there's room to clear the stats bar with the slider open. */
+  @media (min-width: 860px){
+    .rain-control{ position:fixed; right:clamp(16px,3vw,40px); bottom:clamp(16px,3vh,36px); }
+  }
   .rain-control button{
     padding:10px 0; background:none; border:none; color:var(--cream-dim); font-size:14px; white-space:nowrap; cursor:pointer;
   }
   .rain-control button:hover, .rain-control button[aria-pressed="true"]{ color:var(--amber-soft); }
   .rain-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
   .clock-pill{
-    display:flex; align-items:baseline; gap:10px;
-    padding:10px 20px; border-radius:999px;
+    display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:2px 12px;
+    align-self:center; max-width:100%;
+    padding:10px 24px; border-radius:999px;
   }
   .clock-pill .time{
     font-family:'IBM Plex Mono',ui-monospace,monospace;
-    font-size:clamp(20px,2.4vw,28px); font-weight:500;
+    font-size:clamp(30px,3.6vw,44px); font-weight:500;
     font-variant-numeric:tabular-nums; letter-spacing:0.02em;
   }
   .clock-pill .date{
-    font-size:13px; color:var(--cream-dim); letter-spacing:0.04em; text-transform:uppercase;
+    font-size:clamp(14px,1.3vw,16px); color:var(--cream-dim); letter-spacing:0.04em; text-transform:uppercase;
   }
 
   .hero{
@@ -316,7 +314,7 @@
   .todo-clear{ align-self:flex-end; }
 
   .bottom{
-    width:100%; max-width:1100px; display:flex; align-items:flex-end; justify-content:center;
+    width:100%; max-width:1100px; display:flex; flex-direction:column; align-items:center; gap:12px;
     margin-top:auto;
   }
   .stats-bar{
@@ -976,10 +974,10 @@
     width:min(92vw,440px); display:flex; flex-direction:column; gap:8px;
   }
   /* Lines up with the top bar's left edge, in the free space beside the clock. */
-  @media (min-width: 761px){
+  @media (min-width: 860px){
     .toasts{
       top:clamp(16px,3vh,36px); left:max(clamp(16px,3vw,40px), (100vw - 1100px) / 2); transform:none;
-      width:min(300px,28vw);
+      width:min(300px,24vw);
     }
   }
   .toast{
@@ -1041,15 +1039,9 @@
 
 <div class="ui">
   <div class="topbar">
-    <div class="topbar-row">
-      <div class="clock-pill glass">
-        <span class="time" id="clockTime">--:--</span>
-        <span class="date" id="clockDate">—</span>
-      </div>
-      <div class="rain-control glass">
-        <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
-        <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume" hidden>
-      </div>
+    <div class="clock-pill glass">
+      <span class="time" id="clockTime">--:--</span>
+      <span class="date" id="clockDate">—</span>
     </div>
     <div class="reminder-bell glass" id="reminderBell">
       <button class="reminder-toggle" id="drawerToggle" type="button" aria-expanded="false" aria-controls="drawer">
@@ -1120,6 +1112,10 @@
         <div><div class="val" id="statStreak">0 days</div><div class="lbl">Streak</div></div>
       </div>
       </div>
+    </div>
+    <div class="rain-control glass">
+      <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
+      <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume" hidden>
     </div>
   </div>
 </div>
