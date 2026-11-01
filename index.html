@@ -237,13 +237,6 @@
     gap:clamp(14px,2.2vh,26px); width:100%;
   }
 
-  .mode-label{
-    font-family:'Fraunces',Georgia,serif; font-style:italic; font-weight:500;
-    font-size:clamp(17px,1.6vw,22px);
-    color:var(--amber-soft);
-    letter-spacing:0.01em;
-  }
-
   .ring-wrap{ position:relative; width:min(38vh,320px); aspect-ratio:1; }
   .ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
   .ring-track{ fill:none; stroke:rgba(245,234,212,0.10); stroke-width:5; }
@@ -396,6 +389,10 @@
   /* Out of flow beside the timer, so it doesn't push the centred hero down. Centred over the lamp's glow: the lamp's left edge plus 120px, less the page margin the top bar starts from. */
   @media (min-width: 860px){
     .reminder-bell{ position:absolute; top:100%; left:calc(6vw + 120px - clamp(16px,3vw,40px)); transform:translateX(-50%); margin-top:12px; width:min(300px,28vw); }
+  }
+  /* Level with the clock once there's room beside it. The width keeps it clear of the clock's left edge, even with the longest date. */
+  @media (min-width: 980px){
+    .reminder-bell{ top:0; margin-top:0; width:min(300px,50vw - 284px); }
   }
   /* Scrolls inside the card, so a long list can't run down over the timer. */
   .overdue-list{
@@ -1115,7 +1112,6 @@
   </div>
 
   <div class="hero">
-    <div class="mode-label" id="modeLabel">Ready when you are</div>
     <div class="ring-wrap">
       <svg viewBox="0 0 200 200">
         <circle class="ring-track" cx="100" cy="100" r="92"></circle>
@@ -1308,7 +1304,7 @@
       <h2 id="settingsTitle">Sound &amp; voice</h2>
       <button class="modal-close" id="settingsCloseBtn" type="button" aria-label="Close">×</button>
     </div>
-    <p class="panel-hint">Your choices are remembered. Reminders always show on screen. Browsers stay silent until you've clicked somewhere on the page.</p>
+    <p class="panel-hint">Your choices are remembered. Browsers stay silent until you've clicked somewhere on the page.</p>
     <div class="field-row">
       <label class="checkbox">
         <input type="checkbox" id="reminderSoundToggle">
@@ -1389,7 +1385,6 @@
   /* ---------- DOM refs ---------- */
   var digitsEl = document.getElementById('digits');
   var digitsEdit = document.getElementById('digitsEdit');
-  var modeLabelEl = document.getElementById('modeLabel');
   var ringProgress = document.getElementById('ringProgress');
   var startBtn = document.getElementById('startBtn');
   var resetBtn = document.getElementById('resetBtn');
@@ -1436,7 +1431,6 @@
 
   function render(){
     digitsEl.textContent = formatMMSS(timer.remaining);
-    modeLabelEl.textContent = timer.running ? MODE_LABELS[timer.mode] : (timer.remaining === durationFor(timer.mode) ? 'Ready when you are' : MODE_LABELS[timer.mode]+' — paused');
     var frac = 1 - (timer.remaining / durationFor(timer.mode));
     ringProgress.style.strokeDashoffset = (CIRC * (1-frac)).toFixed(2);
     startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === durationFor(timer.mode) ? MODE_START_LABELS[timer.mode] : 'Resume');
@@ -1619,7 +1613,10 @@
     fill: function(samples){
       for(var i=0;i<samples.length;i++){ samples[i] = Math.random()*2 - 1; }
     },
-    onToggle: function(on){ document.querySelector('.window').classList.toggle('raining', on); }
+    onToggle: function(on){
+      raining = on;
+      document.querySelector('.window').classList.toggle('raining', on);
+    }
   });
   ambientSound({
     button: document.getElementById('fireBtn'), volume: document.getElementById('fireVolume'), key: 'lockedInRoom.fireVolume.v1',
@@ -1894,24 +1891,25 @@
   var rainCanvas = document.getElementById('rainCanvas');
   var rctx = rainCanvas.getContext('2d');
   var drops = [];
+  var raining = false;
   function sizeRain(){
     var rect = rainCanvas.parentElement.getBoundingClientRect();
     rainCanvas.width = rect.width; rainCanvas.height = rect.height;
   }
   function seedDrops(){
     drops = [];
-    var count = Math.floor((rainCanvas.width*rainCanvas.height)/4000);
+    var count = Math.floor((rainCanvas.width*rainCanvas.height)/8000);
     for(var i=0;i<count;i++){
       drops.push({
         x: Math.random()*rainCanvas.width,
         y: Math.random()*rainCanvas.height,
-        len: 12+Math.random()*18,
-        speed: 9+Math.random()*6,
-        opacity: 0.3+Math.random()*0.4
+        len: 10+Math.random()*12,
+        speed: 135+Math.random()*90, // pixels per second
+        opacity: 0.15+Math.random()*0.2
       });
     }
   }
-  function drawRain(){
+  function drawRain(seconds){
     rctx.clearRect(0,0,rainCanvas.width,rainCanvas.height);
     rctx.strokeStyle = 'rgba(220,230,245,0.8)';
     rctx.lineWidth = 1;
@@ -1922,7 +1920,7 @@
       rctx.moveTo(d.x, d.y);
       rctx.lineTo(d.x-2, d.y+d.len);
       rctx.stroke();
-      d.y += d.speed; d.x -= 0.5;
+      d.y += d.speed*seconds; d.x -= 8*seconds;
       if(d.y > rainCanvas.height){ d.y = -d.len; d.x = Math.random()*rainCanvas.width; }
     }
     rctx.globalAlpha = 1;
@@ -1965,7 +1963,9 @@
   var lastRainDraw = 0;
   function animate(t){
     if(!reduceMotion){
-      if(t - lastRainDraw > 33){ drawRain(); lastRainDraw = t; }
+      // Every frame, by elapsed time, so it glides at any refresh rate. Capped so drops don't leap after the tab was hidden.
+      if(raining){ drawRain(Math.min((t - lastRainDraw)/1000, 0.1)); }
+      lastRainDraw = t;
       drawDust(t);
     }
     requestAnimationFrame(animate);
@@ -1973,7 +1973,7 @@
 
   function handleResize(){
     sizeRain(); seedDrops();
-    if(reduceMotion) drawRain();
+    if(reduceMotion || raining) drawRain(0);
     sizeDust(); seedDust();
   }
   window.addEventListener('resize', handleResize);
@@ -2005,7 +2005,7 @@
   render();
 
   if(!reduceMotion){ requestAnimationFrame(animate); }
-  else { drawRain(); } // still drops, shown only while it's raining
+  else { drawRain(0); } // still drops, shown only while it's raining
 
   setInterval(renderClock, 1000);
   setInterval(updateSky, 60000);
@@ -2310,9 +2310,6 @@
   function setCompleted(r, completed) {
     r.completed = completed;
     r.completedDateKey = completed ? todayKey() : null;
-    if (completed) {
-      document.querySelectorAll('#toasts .toast').forEach(function (t) { if (t.dataset.id === r.id) t.remove(); });
-    }
     saveReminders();
     render();
     updateNextReminder();
@@ -2622,33 +2619,25 @@
     queueSpeech("It's " + h12 + ' ' + ampm);
   }
 
-  // Sound can be off and the drawer is usually closed, so without this a reminder
-  // could fire with no sign at all. It can go away because the bell keeps listing it.
-  function showToast(text, id, keep) {
+  // Both scripts send this. It stays up because the data it warns about is at risk.
+  document.addEventListener('savefailed', function () {
     var toast = document.createElement('div');
     toast.className = 'toast';
-    if (id) toast.dataset.id = id;
     var msg = document.createElement('div');
     msg.className = 'toast-text';
-    msg.textContent = text;
+    msg.textContent = "Couldn't save. Changes will be lost when this page closes. Check that this browser allows site data.";
     var dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'modal-close';
-    dismiss.setAttribute('aria-label', 'Dismiss reminder');
+    dismiss.setAttribute('aria-label', 'Dismiss warning');
     dismiss.textContent = '×';
     dismiss.addEventListener('click', function () { toast.remove(); });
     toast.appendChild(msg);
     toast.appendChild(dismiss);
     document.getElementById('toasts').appendChild(toast);
-    if (!keep) setTimeout(function () { toast.remove(); }, 8000);
-  }
-  // Both scripts send this. It stays up because the data it warns about is at risk.
-  document.addEventListener('savefailed', function () {
-    showToast("Couldn't save. Changes will be lost when this page closes. Check that this browser allows site data.", null, true);
   }, { once: true });
 
   function fireReminder(r) {
-    showToast(r.label, r.id);
     if (r.readAloud) queueSpeech('Reminder: ' + spokenLabel(r.label));
   }
 
@@ -2740,7 +2729,6 @@
 
     if (nudge.on && Date.now() >= nudge.nextAt) {
       if (!firstCheck) {
-        showToast(nudge.label, 'nudge');
         queueNoise(NUDGE_NOTES);
         if (nudge.readAloud) queueSpeech(spokenLabel(nudge.label));
       }
