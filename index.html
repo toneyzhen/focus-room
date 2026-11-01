@@ -1262,8 +1262,16 @@
     catch(e){ return fallback; }
   }
   function saveJSON(key, val){
-    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ document.dispatchEvent(new Event('savefailed')); }
   }
+
+  // Our own keys: the old Lamplight page shares the ssr_ ones, reads a short timer as minutes and leaves yesterday's time in the stats.
+  var TIMER_SETTINGS_KEY = 'lockedInRoom.timerSettings.v1', STATS_KEY = 'lockedInRoom.stats.v1', TIMER_KEY = 'lockedInRoom.timer.v1';
+  [['ssr_settings',TIMER_SETTINGS_KEY], ['ssr_stats',STATS_KEY], ['ssr_timer',TIMER_KEY]].forEach(function(k){
+    try{
+      if(localStorage.getItem(k[1]) === null && localStorage.getItem(k[0]) !== null) localStorage.setItem(k[1], localStorage.getItem(k[0]));
+    }catch(e){}
+  });
 
   function todayStr(d){
     d = d || new Date();
@@ -1278,14 +1286,14 @@
   /* ---------- settings (focus / break lengths, in seconds) ---------- */
   var DEFAULT_SETTINGS = { focus:1500, "break":300 };
   var settings = (function(){
-    var stored = loadJSON('ssr_settings', null);
+    var stored = loadJSON(TIMER_SETTINGS_KEY, null);
     if(!stored || typeof stored.focus !== 'number') return Object.assign({}, DEFAULT_SETTINGS);
     return { focus: stored.focus, "break": (typeof stored["break"] === 'number') ? stored["break"] : DEFAULT_SETTINGS["break"] };
   })();
-  saveJSON('ssr_settings', settings);
+  saveJSON(TIMER_SETTINGS_KEY, settings);
 
   /* ---------- stats ---------- */
-  var stats = loadJSON('ssr_stats', null);
+  var stats = loadJSON(STATS_KEY, null);
   if(!stats){ stats = { date: todayStr(), focusedSec:0, sessions:0, streak:0, lastActiveDate:null }; }
   else if(typeof stats.focusedSec !== 'number'){ stats.focusedSec = Math.round((stats.focusedMin||0)*60); delete stats.focusedMin; }
   (function reconcileStats(){
@@ -1295,7 +1303,7 @@
       var gap = daysBetween(stats.lastActiveDate, today);
       if(gap > 1) stats.streak = 0;
     }
-    saveJSON('ssr_stats', stats);
+    saveJSON(STATS_KEY, stats);
   })();
 
   /* ---------- DOM refs ---------- */
@@ -1408,7 +1416,7 @@
     saveTimer();
     render();
   }
-  function saveTimer(){ saveJSON('ssr_timer', timer); }
+  function saveTimer(){ saveJSON(TIMER_KEY, timer); }
   // Take on a saved state: after a refresh, or when another tab changes the timer.
   function applyTimer(saved){
     clearInterval(tickHandle);
@@ -1424,16 +1432,16 @@
     }
   }
   function creditSession(){
-    stats = loadJSON('ssr_stats', stats); // another tab may have added to it
+    stats = loadJSON(STATS_KEY, stats); // another tab may have added to it
     checkRollover();
     stats.sessions += 1;
     stats.focusedSec += settings.focus;
     updateStreak();
-    saveJSON('ssr_stats', stats);
+    saveJSON(STATS_KEY, stats);
     renderStats();
   }
   function completeSession(){
-    var saved = loadJSON('ssr_timer', null);
+    var saved = loadJSON(TIMER_KEY, null);
     if(saved && saved.endAt !== timer.endAt){ applyTimer(saved); return; } // another tab already finished this one
     clearInterval(tickHandle);
     timer.running = false;
@@ -1587,7 +1595,7 @@
     var b = EDIT_BOUNDS[timer.mode];
     totalSec = Math.min(b[1], Math.max(b[0], totalSec));
     settings[timer.mode] = totalSec;
-    saveJSON('ssr_settings', settings);
+    saveJSON(TIMER_SETTINGS_KEY, settings);
     timer.remaining = totalSec;
     saveTimer();
     render();
@@ -1697,7 +1705,7 @@
     if(stats.date !== today){
       stats.date = today; stats.focusedSec = 0; stats.sessions = 0;
       if(stats.lastActiveDate && daysBetween(stats.lastActiveDate, today) > 1) stats.streak = 0;
-      saveJSON('ssr_stats', stats);
+      saveJSON(STATS_KEY, stats);
       renderStats();
     }
   }
@@ -1858,7 +1866,7 @@
   window.addEventListener('resize', handleResize);
 
   /* ---------- resume after a refresh, stay in step with other tabs ---------- */
-  var savedTimer = loadJSON('ssr_timer', null);
+  var savedTimer = loadJSON(TIMER_KEY, null);
   if(savedTimer && MODE_LABELS[savedTimer.mode] && typeof savedTimer.remaining === 'number'){
     if(savedTimer.running && savedTimer.endAt <= Date.now()){
       // shortcut: a session that ended on an earlier day isn't credited, since stats only hold today; store history if that matters.
@@ -1869,9 +1877,9 @@
     }
   }
   window.addEventListener('storage', function(e){
-    if(e.key === 'ssr_timer') applyTimer(loadJSON(e.key, timer));
-    else if(e.key === 'ssr_settings'){ settings = loadJSON(e.key, settings); render(); }
-    else if(e.key === 'ssr_stats'){ stats = loadJSON(e.key, stats); renderStats(); }
+    if(e.key === TIMER_KEY) applyTimer(loadJSON(e.key, timer));
+    else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); }
+    else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); renderStats(); }
     else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
     else if(e.key === GOAL_KEY){ goal = loadGoal(); renderStats(); }
   });
@@ -1920,6 +1928,13 @@
   var openTimePickerSelects = 0;
   var lastRenderedMinute = null;
   var MISSED = -1e6; // sorts ahead of any real overdue time
+  var lastCheckDay = null;
+  var lastCheckHHMM = null;
+  var pointerDown = false;
+  document.addEventListener('pointerdown', function () { pointerDown = true; }, true);
+  ['pointerup', 'pointercancel'].forEach(function (type) {
+    document.addEventListener(type, function () { pointerDown = false; }, true);
+  });
 
   // Rebuilding the reminder list (as the once-a-second tick does) replaces
   // every row's time-picker <select> elements — which yanks focus away and
@@ -1950,7 +1965,7 @@
   }
 
   function saveSettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
   }
 
   function cancelPendingDelete() {
@@ -1983,7 +1998,9 @@
     if (trimmed) r.label = trimmed;
     editingLabelId = null;
     saveReminders();
-    render();
+    // Pressing a row's button ends the edit. Rebuilding now would replace that button and lose the click.
+    if (pointerDown) document.addEventListener('pointerup', function () { setTimeout(render); }, { once: true });
+    else render();
   }
 
   function cancelLabelEdit() {
@@ -2009,7 +2026,7 @@
   }
 
   function saveReminders() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders)); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
   }
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -2103,6 +2120,10 @@
     return { el: wrap, getValue: getValue, setValue: setValue, hourSel: hourSel, minSel: minSel, ampmSel: ampmSel };
   }
 
+  function skipDateFor(time) {
+    return time < nowHHMM() ? todayKey() : null;
+  }
+
   // Minutes from now until hh:mm today. Positive = later today, negative = already passed today.
   function rawMinutesDiff(hhmm) {
     var now = new Date();
@@ -2119,6 +2140,8 @@
   // reminder only starts counting toward its *next* occurrence once the
   // day rolls over and today's checkmark resets.
   function sortKey(r) {
+    // Its time had already passed when it was set, so it means tomorrow, not overdue.
+    if (r.skipDate === todayKey()) return rawMinutesDiff(r.time) + 1440;
     // A one-time reminder rings once, so after the day it rang it has nothing left to count down to.
     if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayKey()) return MISSED;
     return rawMinutesDiff(r.time);
@@ -2206,6 +2229,7 @@
       var timePicker = buildTimePicker(r.time, r.label, true);
       function commitRowTime() {
         r.time = timePicker.getValue();
+        r.skipDate = skipDateFor(r.time);
         r.lastFiredKey = null;
         if (!r.repeat) { r.completed = false; }
         saveReminders();
@@ -2407,7 +2431,7 @@
 
   // Sound is opt-in and the drawer is usually closed, so without this a reminder
   // could fire with no sign at all. It can go away because the bell keeps listing it.
-  function showToast(text, id) {
+  function showToast(text, id, keep) {
     var toast = document.createElement('div');
     toast.className = 'toast';
     if (id) toast.dataset.id = id;
@@ -2423,8 +2447,12 @@
     toast.appendChild(msg);
     toast.appendChild(dismiss);
     document.getElementById('toasts').appendChild(toast);
-    setTimeout(function () { toast.remove(); }, 8000);
+    if (!keep) setTimeout(function () { toast.remove(); }, 8000);
   }
+  // Both scripts send this. It stays up because the data it warns about is at risk.
+  document.addEventListener('savefailed', function () {
+    showToast("Couldn't save. Changes will be lost when this page closes. Check that this browser allows site data.", null, true);
+  }, { once: true });
 
   function fireReminder(r) {
     showToast(r.label, r.id);
@@ -2434,12 +2462,21 @@
     }
   }
 
+  // Did this time come up since the last check? Sleep or a throttled tab can skip its exact minute.
+  function isDue(time, since, hhmm) {
+    return time === hhmm || (time > since && time < hhmm);
+  }
+
   function tick() {
     var now = new Date();
     var h = now.getHours();
     var hhmm = pad(now.getHours()) + ':' + pad(now.getMinutes());
     var tKey = todayKey();
     var changed = false;
+    // First check rings only this minute, since the page may have been closed on purpose. A new day checks from midnight.
+    var since = lastCheckDay === null ? hhmm : (lastCheckDay === tKey ? lastCheckHHMM : '');
+    lastCheckDay = tKey;
+    lastCheckHHMM = hhmm;
 
     // A repeating task's checkmark is for "done today" — clear it once a new day starts.
     reminders.forEach(function (r) {
@@ -2451,8 +2488,7 @@
     });
 
     reminders.forEach(function (r) {
-      // shortcut: exact-minute match, so a heavily throttled background tab can miss one; compare against the last tick if that shows up.
-      if (r.time !== hhmm || r.completed) return;
+      if (!isDue(r.time, since, hhmm) || r.completed) return;
       var fireKey = r.repeat ? tKey : 'once';
       if (r.lastFiredKey === fireKey) return;
       r.lastFiredKey = fireKey;
@@ -2684,6 +2720,7 @@
     reminders.push({
       id: 'r' + Date.now() + Math.random(),
       time: time,
+      skipDate: skipDateFor(time),
       label: label,
       repeat: repeatInput.checked,
       lastFiredKey: null,
@@ -2816,6 +2853,7 @@
       reminders.push({
         id: 'r' + Date.now() + Math.random() + '-' + i,
         time: item.time,
+        skipDate: skipDateFor(item.time),
         label: label,
         repeat: !!item.repeat,
         lastFiredKey: null,
