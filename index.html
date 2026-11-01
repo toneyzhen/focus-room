@@ -1238,6 +1238,10 @@
         </label>
       </div>
       <div class="field-row">
+        <label class="checkbox">
+          <input type="checkbox" id="nudgeReadAloud">
+          Read aloud
+        </label>
         <button type="submit" class="primary-btn" id="nudgeSubmit">Start</button>
       </div>
     </form>
@@ -1314,12 +1318,6 @@
       <label class="checkbox">
         <input type="checkbox" id="hourlyChimeToggle">
         Chime and say the time at the top of every hour
-      </label>
-    </div>
-    <div class="field-row">
-      <label class="checkbox">
-        <input type="checkbox" id="voiceToggle">
-        Read the repeating timer out loud
       </label>
     </div>
     <div class="field-row">
@@ -2031,7 +2029,6 @@
   var readAloudInput = document.getElementById('readAloudInput');
   var hourlyChimeToggle = document.getElementById('hourlyChimeToggle');
   var reminderSoundToggle = document.getElementById('reminderSoundToggle');
-  var voiceToggle = document.getElementById('voiceToggle');
 
   var reminders = loadReminders();
   var settings = loadSettings();
@@ -2081,11 +2078,10 @@
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        return { hourlyChime: !!parsed.hourlyChime, reminderSound: !!parsed.reminderSound, voice: !!parsed.voice };
+        return { hourlyChime: !!parsed.hourlyChime, reminderSound: !!parsed.reminderSound };
       }
     } catch (e) {}
-    // Reading text out loud can say something private, so it waits for an opt-in.
-    return { hourlyChime: true, reminderSound: true, voice: false };
+    return { hourlyChime: true, reminderSound: true };
   }
 
   function saveSettings() {
@@ -2660,7 +2656,7 @@
       var saved = JSON.parse(localStorage.getItem(NUDGE_KEY));
       if (saved && typeof saved.label === 'string' && saved.minutes >= 1) return saved;
     } catch (e) {}
-    return { on: false, label: '', minutes: 20, nextAt: 0 };
+    return { on: false, label: '', minutes: 20, readAloud: false, nextAt: 0 };
   }
 
   function saveNudge() {
@@ -2690,6 +2686,7 @@
   function fillNudgeForm() {
     nudgeLabelEl.value = nudge.label;
     nudgeMinutesEl.value = nudge.minutes;
+    nudgeReadAloudEl.checked = !!nudge.readAloud;
   }
 
   function stopNudge() {
@@ -2744,7 +2741,7 @@
       if (!firstCheck) {
         showToast(nudge.label, 'nudge');
         queueNoise(NUDGE_NOTES);
-        if (settings.voice) queueSpeech(spokenLabel(nudge.label));
+        if (nudge.readAloud) queueSpeech(spokenLabel(nudge.label));
       }
       nudge.nextAt = nextNudgeAt(nudge.nextAt, nudge.minutes * 60000, Date.now());
       saveNudge();
@@ -2872,13 +2869,6 @@
 
   hourlyChimeToggle.checked = settings.hourlyChime;
   reminderSoundToggle.checked = settings.reminderSound;
-  voiceToggle.checked = settings.voice;
-
-  voiceToggle.addEventListener('change', function () {
-    settings.voice = voiceToggle.checked;
-    saveSettings();
-  });
-
   hourlyChimeToggle.addEventListener('change', function () {
     settings.hourlyChime = hourlyChimeToggle.checked;
     saveSettings();
@@ -2913,6 +2903,7 @@
   var nudgeLabelEl = document.getElementById('nudgeLabel');
   var nudgeMinutesEl = document.getElementById('nudgeMinutes');
   var nudgeSubmitEl = document.getElementById('nudgeSubmit');
+  var nudgeReadAloudEl = document.getElementById('nudgeReadAloud');
 
   document.getElementById('nudgeForm').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -2924,10 +2915,15 @@
     if (!label) return;
     ensureAudio();
     var minutes = Math.min(720, Math.max(1, parseInt(nudgeMinutesEl.value, 10) || 20));
-    nudge = { on: true, label: label, minutes: minutes, nextAt: Date.now() + minutes * 60000 };
+    nudge = { on: true, label: label, minutes: minutes, readAloud: nudgeReadAloudEl.checked, nextAt: Date.now() + minutes * 60000 };
     fillNudgeForm();
     saveNudge();
     renderNudge();
+  });
+  // Stays editable while the timer runs, since it doesn't change the schedule.
+  nudgeReadAloudEl.addEventListener('change', function () {
+    nudge.readAloud = nudgeReadAloudEl.checked;
+    saveNudge();
   });
   document.getElementById('nudgeRowStop').addEventListener('click', function () {
     var usedKeyboard = this.matches(':focus-visible'); // this button is about to hide itself
