@@ -1938,6 +1938,7 @@
   // Different so you can tell a task coming due from the hour passing without looking.
   var REMINDER_NOTES = [880, 660];
   var HOUR_NOTES = [660];
+  var REMINDER_SOUND_MS = 1500;
   var lastCheckDay = null;
   var lastCheckHHMM = null;
   var pointerDown = false;
@@ -2466,7 +2467,6 @@
 
   function fireReminder(r) {
     showToast(r.label, r.id);
-    if (settings.reminderSound) playChime(REMINDER_NOTES);
     if (settings.voice) setTimeout(function () { speak('Reminder: ' + spokenLabel(r.label)); }, 500);
   }
 
@@ -2481,6 +2481,7 @@
     var hhmm = pad(now.getHours()) + ':' + pad(now.getMinutes());
     var tKey = todayKey();
     var changed = false;
+    var chimed = false;
     // First check rings only this minute, since the page may have been closed on purpose. A new day checks from midnight.
     var since = lastCheckDay === null ? hhmm : (lastCheckDay === tKey ? lastCheckHHMM : '');
     lastCheckDay = tKey;
@@ -2503,13 +2504,15 @@
       r.firedDate = tKey;
       changed = true;
       fireReminder(r);
+      chimed = settings.reminderSound;
     });
+    if (chimed) playChime(REMINDER_NOTES); // once, however many came due together
 
     if (settings.hourlyChime && now.getMinutes() === 0) {
       var hourKey = tKey + '-' + pad(h);
       if (lastHourlyChimeKey !== hourKey) {
         lastHourlyChimeKey = hourKey;
-        fireHourlyChime(now);
+        setTimeout(function () { fireHourlyChime(now); }, chimed ? REMINDER_SOUND_MS : 0);
       }
     }
 
@@ -2640,7 +2643,7 @@
     ensureAudio();
     playChime(REMINDER_NOTES);
     if (settings.voice) setTimeout(function () { speak('This is a test reminder.'); }, 500);
-    setTimeout(function () { fireHourlyChime(new Date()); }, 1200);
+    setTimeout(function () { fireHourlyChime(new Date()); }, REMINDER_SOUND_MS);
   });
 
   // --- Settings dialog (sound + voice toggles live behind the gear icon,
