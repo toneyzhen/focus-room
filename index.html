@@ -66,7 +66,7 @@
   .sky{
     position:absolute; inset:0;
     background:linear-gradient(180deg, #171433 0%, #2c2350 100%);
-    transition:background 2s ease;
+    transition:background 2s ease, filter 1.5s ease;
   }
   .celestial{
     position:absolute; width:15%; aspect-ratio:1; border-radius:50%;
@@ -86,6 +86,7 @@
     position:absolute; height:5%; width:32%; border-radius:999px;
     background:rgba(255,255,255,0.10);
     filter:blur(2px);
+    transition:height 1.5s ease, width 1.5s ease, background 1.5s ease, filter 1.5s ease;
   }
   .skyline{
     position:absolute; left:0; right:0; bottom:0; height:22%;
@@ -93,7 +94,12 @@
     clip-path: polygon(0% 100%, 0% 40%, 6% 40%, 6% 20%, 12% 20%, 12% 55%, 20% 55%, 20% 10%, 27% 10%, 27% 45%, 35% 45%, 35% 30%, 43% 30%, 43% 60%, 52% 60%, 52% 15%, 60% 15%, 60% 50%, 68% 50%, 68% 25%, 76% 25%, 76% 62%, 85% 62%, 85% 35%, 93% 35%, 93% 55%, 100% 55%, 100% 100%);
     opacity:0.9;
   }
-  canvas.rain{ position:absolute; inset:0; }
+  canvas.rain{ position:absolute; inset:0; opacity:0; transition:opacity 1s ease; }
+  .raining canvas.rain{ opacity:1; }
+  .raining .sky{ filter:brightness(0.6) saturate(0.45); }
+  .raining .stars{ opacity:0 !important; } /* updateSky sets it inline */
+  .raining .celestial{ opacity:0.2; }
+  .raining .cloud{ height:14%; width:60%; background:rgba(120,125,140,0.55); filter:blur(8px); }
   .windowpane{
     position:absolute; inset:0;
     background:
@@ -178,16 +184,17 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .rain-control{ display:flex; align-items:center; gap:10px; padding:0 16px; border-radius:999px; }
-  /* In the desk's empty corner once there's room to clear the stats bar with the slider open. */
-  @media (min-width: 860px){
-    .rain-control{ position:fixed; right:clamp(16px,3vw,40px); bottom:clamp(16px,3vh,36px); }
+  .rain-control{ display:flex; align-items:center; gap:12px; padding:0 20px; border-radius:999px; }
+  /* In the window's bottom-right corner (offsets mirror .window), once the timer controls can't run into it. */
+  @media (min-width: 920px){
+    .rain-control{ position:fixed; right:calc(7vw + 14px); bottom:calc(38vh + 14px); }
   }
   .rain-control button{
-    padding:10px 0; background:none; border:none; color:var(--cream-dim); font-size:14px; white-space:nowrap; cursor:pointer;
+    padding:10px 0; background:none; border:none; color:var(--cream); font-size:15px; font-weight:600; white-space:nowrap; cursor:pointer;
   }
   .rain-control button:hover, .rain-control button[aria-pressed="true"]{ color:var(--amber-soft); }
   .rain-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
+  .rain-control button[aria-pressed="false"] + input{ opacity:0.5; }
   .clock-pill{
     display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:2px 12px;
     align-self:center; max-width:100%;
@@ -314,7 +321,7 @@
   .todo-clear{ align-self:flex-end; }
 
   .bottom{
-    width:100%; max-width:1100px; display:flex; flex-direction:column; align-items:center; gap:12px;
+    width:100%; max-width:1100px; display:flex; align-items:flex-end; justify-content:center;
     margin-top:auto;
   }
   .stats-bar{
@@ -1076,6 +1083,10 @@
       <button class="btn btn-primary" id="startBtn">Start focus</button>
       <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
     </div>
+    <div class="rain-control glass">
+      <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
+      <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume">
+    </div>
 
     <div class="todo-card glass">
       <form class="todo-form" id="todoForm">
@@ -1112,10 +1123,6 @@
         <div><div class="val" id="statStreak">0 days</div><div class="lbl">Streak</div></div>
       </div>
       </div>
-    </div>
-    <div class="rain-control glass">
-      <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
-      <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume" hidden>
     </div>
   </div>
 </div>
@@ -1520,7 +1527,7 @@
       if(turnOn) startRain(); else stopRain();
     }catch(e){ return; } // no Web Audio here, so the button just stays off
     rainBtn.setAttribute('aria-pressed', turnOn ? 'true' : 'false');
-    rainVolume.hidden = !turnOn;
+    document.querySelector('.window').classList.toggle('raining', turnOn);
   });
   rainVolume.addEventListener('input', function(){
     if(rainSource) rainGain.gain.setTargetAtTime(rainLevel(), rainCtx.currentTime, 0.05);
@@ -1772,20 +1779,20 @@
   }
   function seedDrops(){
     drops = [];
-    var count = Math.floor((rainCanvas.width*rainCanvas.height)/9000);
+    var count = Math.floor((rainCanvas.width*rainCanvas.height)/4000);
     for(var i=0;i<count;i++){
       drops.push({
         x: Math.random()*rainCanvas.width,
         y: Math.random()*rainCanvas.height,
-        len: 10+Math.random()*14,
-        speed: 4+Math.random()*4,
-        opacity: 0.12+Math.random()*0.18
+        len: 12+Math.random()*18,
+        speed: 9+Math.random()*6,
+        opacity: 0.3+Math.random()*0.4
       });
     }
   }
   function drawRain(){
     rctx.clearRect(0,0,rainCanvas.width,rainCanvas.height);
-    rctx.strokeStyle = 'rgba(220,230,245,0.5)';
+    rctx.strokeStyle = 'rgba(220,230,245,0.8)';
     rctx.lineWidth = 1;
     for(var i=0;i<drops.length;i++){
       var d = drops[i];
@@ -1845,6 +1852,7 @@
 
   function handleResize(){
     sizeRain(); seedDrops();
+    if(reduceMotion) drawRain();
     sizeDust(); seedDust();
   }
   window.addEventListener('resize', handleResize);
@@ -1877,7 +1885,7 @@
   render();
 
   if(!reduceMotion){ requestAnimationFrame(animate); }
-  else { rctx.clearRect(0,0,rainCanvas.width,rainCanvas.height); }
+  else { drawRain(); } // still drops, shown only while it's raining
 
   setInterval(renderClock, 1000);
   setInterval(updateSky, 60000);
