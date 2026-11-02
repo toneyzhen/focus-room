@@ -1018,7 +1018,6 @@
   .toast-body{ flex:1; min-width:0; }
   .toast-kind{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:var(--note-color); }
   .toast-text{ white-space:pre-wrap; overflow-wrap:break-word; }
-  .toast-sub{ font-size:12px; color:var(--ink-soft); }
 </style>
 </head>
 <body style="margin:0;">
@@ -2583,8 +2582,8 @@
       playNextSound();
     }
     if (item.notes) {
+      setTimeout(done, (item.notes.length - 1) * 220 + 950 + 350); // the extra covers audio starting a little late; set first so a sound error can't block the queue
       playChime(item.notes);
-      setTimeout(done, (item.notes.length - 1) * 220 + 950 + 350); // the extra covers audio starting a little late
     } else {
       speak(item.text, done);
     }
@@ -2644,7 +2643,7 @@
     document.querySelectorAll('#toasts .toast' + selector).forEach(function (note) { note.remove(); });
   }
 
-  function showNote(kind, text, sub, id) {
+  function showNote(kind, text, id) {
     if (!settings.showNotes && kind !== 'warning') return; // a failed save puts data at risk, so it always shows
     var type = NOTE_KINDS[kind];
     var note = document.createElement('div');
@@ -2671,12 +2670,6 @@
     msg.textContent = text;
     body.appendChild(label);
     body.appendChild(msg);
-    if (sub) {
-      var subEl = document.createElement('div');
-      subEl.className = 'toast-sub';
-      subEl.textContent = sub;
-      body.appendChild(subEl);
-    }
     var dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'modal-close';
@@ -2696,7 +2689,7 @@
   }, { once: true });
 
   function fireReminder(r) {
-    showNote('reminder', r.label, '', r.id);
+    showNote('reminder', r.label, r.id);
     if (r.readAloud) queueSpeech('Reminder: ' + spokenLabel(r.label));
   }
 
@@ -2788,17 +2781,14 @@
     }
 
     if (nudge.on && Date.now() >= nudge.nextAt) {
-      var rang = !firstCheck;
-      if (rang) {
+      if (!firstCheck) {
         queueNoise(NUDGE_NOTES);
         if (nudge.readAloud) queueSpeech(spokenLabel(nudge.label));
+        removeNotes('[data-kind="timer"]'); // the new ring replaces the last one, so they don't pile up
+        showNote('timer', nudge.label);
       }
       nudge.nextAt = nextNudgeAt(nudge.nextAt, nudge.minutes * 60000, Date.now());
       saveNudge();
-      if (rang) {
-        removeNotes('[data-kind="timer"]'); // the new ring replaces the last one, so they don't pile up
-        showNote('timer', nudge.label, 'Next ' + describeCountdown(Math.ceil((nudge.nextAt - Date.now()) / 60000)));
-      }
     }
     updateNudgeRow();
 
@@ -2950,7 +2940,7 @@
     queueNoise(REMINDER_NOTES);
     queueNoise(REMINDER_NOTES);
     showNote('reminder', 'Your task appears here');
-    showNote('timer', 'Your repeating timer appears here', 'Next in 20 min');
+    showNote('timer', 'Your repeating timer appears here');
     queueNoise(NUDGE_NOTES);
     queueSpeech('This is a test reminder.');
     fireHourlyChime(new Date());
