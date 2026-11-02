@@ -13,15 +13,10 @@
     --cream-dim:#cabca3;
     --amber:#f0a94e;
     --amber-soft:#ffd9a0;
-    --rust:#c96b42;
-    --sage:#8aa07c;
     --wall-1:#241c30;
     --wall-2:#150f1e;
-    --mauve:#5b4a6b;
     --glass-bg:rgba(32,25,42,0.52);
-    --glass-bg-strong:rgba(24,18,32,0.72);
     --glass-border:rgba(245,234,212,0.14);
-    --focus-ring: rgba(240,169,78,0.65);
   }
 
   *{box-sizing:border-box;}
@@ -519,18 +514,17 @@
     margin: 0 0 12px;
   }
 
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(30, 22, 10, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    z-index: 50;
+  /* The browser centres it and dims the page behind; the look comes from .modal inside. */
+  .settings-dialog {
+    width: min(380px, calc(100% - 40px));
+    max-width: none;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
   }
 
-  .modal-backdrop[hidden] { display: none; }
+  .settings-dialog::backdrop { background: rgba(30, 22, 10, 0.45); }
 
   .modal {
     background: var(--surface);
@@ -642,7 +636,7 @@
     padding: 3px 3px;
   }
 
-  .time-picker.compact .tp-hour, .time-picker.compact .tp-minute { width: 42px; }
+  .time-picker.compact .tp-hour, .time-picker.compact .tp-minute { width: 46px; }
   .time-picker.compact .tp-ampm { width: 50px; margin-left: 1px; }
 
   .time-picker.compact .tp-select:hover {
@@ -663,7 +657,7 @@
   .primary-btn {
     margin-left: auto;
     background: var(--brass);
-    color: #fff;
+    color: #241708; /* dark text: white fails contrast on these light accents */
     border: none;
     border-radius: 6px;
     padding: 10px 18px;
@@ -705,11 +699,12 @@
     gap: 10px;
   }
 
+  /* The drawer is narrower than Reminder Bell's page: the text gets its own row under the time. */
   .reminder-row {
-    display: grid;
-    grid-template-columns: 165px 1fr auto auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -755,6 +750,10 @@
   }
 
   .reminder-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
     font-size: 12px;
     color: var(--ink-soft);
     margin-top: 2px;
@@ -774,7 +773,6 @@
 
   .repeat-toggle:hover { color: var(--brass); }
 
-  .reminder-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
   label.read-aloud { font-size: 12px; gap: 5px; }
   label.read-aloud input { width: 13px; height: 13px; }
 
@@ -825,7 +823,7 @@
     opacity: 1;
     background: var(--teal);
     border-color: var(--teal);
-    color: #fff;
+    color: #241708;
   }
 
   .delete-btn {
@@ -843,7 +841,7 @@
 
   .delete-confirm-btn {
     background: var(--red);
-    color: #fff;
+    color: #241708;
     border: none;
     border-radius: 6px;
     padding: 5px 10px;
@@ -972,14 +970,8 @@
   .backup-status.success { color: var(--teal); }
   .backup-status.error { color: var(--red); }
 
-    /* The drawer is narrower than Reminder Bell's page: text gets its own row. */
-    .reminder-row{ display:flex; flex-wrap:wrap; gap:8px; }
-    .time-picker.compact .tp-hour, .time-picker.compact .tp-minute{ width:46px; }
     .reminder-row > .row-actions{ margin-left:auto; }
     .reminder-row > .reminder-main{ flex:1 0 100%; order:1; }
-
-    /* White text fails contrast on the dark palette's light accents. */
-    .primary-btn, .check-btn.checked, .delete-confirm-btn{ color:#241708; }
   }
 
   .drawer{
@@ -1331,8 +1323,8 @@
     <footer>Reminders only run while this page is open. Refreshing keeps your list.</footer>
   </aside>
 
-<div class="modal-backdrop" id="settingsBackdrop" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+<dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
+  <div class="modal">
     <div class="modal-header">
       <h2 id="settingsTitle">Sound &amp; voice</h2>
       <button class="modal-close" id="settingsCloseBtn" type="button" aria-label="Close">×</button>
@@ -1360,7 +1352,7 @@
       <button class="link-btn" id="testSoundBtn" type="button">Test sounds and notifications</button>
     </div>
   </div>
-</div>
+</dialog>
 
   <div class="edge-glow" id="edgeGlow" aria-hidden="true"></div>
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -1593,7 +1585,7 @@
     o.volume.value = loadJSON(o.key, 0.5);
     function level(){ return o.volume.value * o.loudness; }
     function setUp(){
-      if(!soundCtx){ soundCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      if(!soundCtx){ soundCtx = new AudioContext(); }
       buffer = soundCtx.createBuffer(1, soundCtx.sampleRate*o.seconds, soundCtx.sampleRate);
       o.fill(buffer.getChannelData(0), soundCtx.sampleRate);
       input = soundCtx.createBiquadFilter();
@@ -1975,12 +1967,12 @@
       });
     }
   }
-  function drawDust(t){
+  function drawDust(t, frames){ // frames: how many 60fps frames have passed, so speed doesn't depend on the screen
     dctx.clearRect(0,0,dustCanvas.width,dustCanvas.height);
     dctx.fillStyle = 'rgba(240,169,78,0.9)';
     for(var i=0;i<motes.length;i++){
       var p = motes[i];
-      p.y += p.vy; p.x += p.vx + Math.sin(t*0.001+p.phase)*0.06;
+      p.y += p.vy*frames; p.x += (p.vx + Math.sin(t*0.001+p.phase)*0.06)*frames;
       if(p.y < dustCanvas.height*0.35){ p.y = dustCanvas.height*0.6+Math.random()*dustCanvas.height*0.35; p.x = Math.random()*dustCanvas.width*0.4; }
       dctx.globalAlpha = p.opacity;
       dctx.beginPath(); dctx.arc(p.x,p.y,p.r,0,Math.PI*2); dctx.fill();
@@ -1988,13 +1980,14 @@
     dctx.globalAlpha = 1;
   }
 
-  var lastRainDraw = 0;
+  var lastFrame = 0;
   function animate(t){
     if(!reduceMotion){
-      // Every frame, by elapsed time, so it glides at any refresh rate. Capped so drops don't leap after the tab was hidden.
-      if(raining){ drawRain(Math.min((t - lastRainDraw)/1000, 0.1)); }
-      lastRainDraw = t;
-      drawDust(t);
+      // Every frame, by elapsed time, so things glide at any refresh rate. Capped so nothing leaps after the tab was hidden.
+      var seconds = Math.min((t - lastFrame)/1000, 0.1);
+      lastFrame = t;
+      if(raining){ drawRain(seconds); }
+      drawDust(t, seconds*60);
     }
     requestAnimationFrame(animate);
   }
@@ -2067,7 +2060,6 @@
   var pendingDeleteTimer = null;
   var editingLabelId = null;
   var lastHourlyChimeKey = null;
-  var openTimePickerSelects = 0;
   var lastRenderedMinute = null;
   var MISSED = -1e6; // sorts ahead of any real overdue time
   // Different so you can tell a task coming due from the hour passing without looking.
@@ -2089,21 +2081,13 @@
     document.addEventListener(type, function () { pointerDown = false; }, true);
   });
 
-  // Rebuilding the reminder list (as the once-a-second tick does) replaces
-  // every row's time-picker <select> elements — which yanks focus away and
-  // closes any dropdown the person currently has open, mid-click. Track
-  // focus on every tp-select and have tick() skip the rebuild while one is
-  // in use, the same way it already does for label editing.
-  document.addEventListener('focusin', function (e) {
-    if (e.target && e.target.classList && e.target.classList.contains('tp-select')) {
-      openTimePickerSelects++;
-    }
-  });
-  document.addEventListener('focusout', function (e) {
-    if (e.target && e.target.classList && e.target.classList.contains('tp-select')) {
-      openTimePickerSelects = Math.max(0, openTimePickerSelects - 1);
-    }
-  });
+  // Rebuilding the reminder list replaces every row, which would throw away
+  // text being typed or close a time dropdown mid-click, so automatic
+  // rebuilds wait while either is in use.
+  function listIsBusy() {
+    var active = document.activeElement;
+    return !!editingLabelId || !!(active && active.classList && active.classList.contains('tp-select'));
+  }
 
   function loadSettings() {
     try {
@@ -2441,7 +2425,7 @@
         label.textContent = r.label;
         label.tabIndex = 0;
         label.setAttribute('role', 'button');
-        label.setAttribute('aria-label', 'Edit reminder text');
+        label.setAttribute('aria-label', 'Edit ' + r.label);
         label.addEventListener('click', function () { editingLabelId = r.id; render(); });
         label.addEventListener('keydown', function (e) {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editingLabelId = r.id; render(); }
@@ -2495,7 +2479,7 @@
       check.type = 'button';
       check.className = 'check-btn' + (r.completed ? ' checked' : '');
       check.textContent = '✓';
-      check.setAttribute('aria-label', r.completed ? 'Mark as not completed' : 'Mark as completed');
+      check.setAttribute('aria-label', 'Mark ' + r.label + (r.completed ? ' as not completed' : ' as completed'));
       check.setAttribute('aria-pressed', r.completed ? 'true' : 'false');
       check.addEventListener('click', function () { setCompleted(r, !r.completed); });
 
@@ -2529,14 +2513,14 @@
         var del = document.createElement('button');
         del.className = 'delete-btn';
         del.type = 'button';
-        del.setAttribute('aria-label', 'Delete reminder');
+        del.setAttribute('aria-label', 'Delete ' + r.label);
         del.textContent = '×';
         del.addEventListener('click', function () {
           pendingDeleteId = r.id;
           if (pendingDeleteTimer) clearTimeout(pendingDeleteTimer);
           pendingDeleteTimer = setTimeout(function () {
             cancelPendingDelete();
-            render();
+            if (!listIsBusy()) render(); // otherwise the next rebuild puts the × back
           }, 4000);
           render();
         });
@@ -2568,8 +2552,7 @@
   function ensureAudio() {
     if (!audioCtx) {
       try {
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new Ctx();
+        audioCtx = new AudioContext();
       } catch (e) { audioCtx = null; }
     }
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -2720,7 +2703,10 @@
     showNote('session', e.detail.enteringBreak ? 'Focus session done. Break started.' : 'Break over. Ready for the next session.');
     queueNoise(SESSION_NOTES);
   });
-  document.getElementById('startBtn').addEventListener('click', function () { removeNotes('[data-kind="session"]'); });
+  // Any of these moves the timer on, so a note about how the last session ended no longer applies.
+  ['startBtn', 'resetBtn', 'skipBtn'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () { removeNotes('[data-kind="session"]'); });
+  });
 
   function showNote(kind, text, id) {
     if (!settings.showNotes && kind !== 'warning') return; // a failed save puts data at risk, so it always shows
@@ -2886,7 +2872,7 @@
     // loses clicks and keyboard focus. Rebuilding would also blow away an
     // in-progress edit (lost keystrokes, lost focus, a closed dropdown) — skip
     // it while a label is being typed or a time picker is open.
-    if (!drawer.hidden && !editingLabelId && !openTimePickerSelects && hhmm !== lastRenderedMinute) render();
+    if (!drawer.hidden && !listIsBusy() && hhmm !== lastRenderedMinute) render();
     updateNextReminder();
   }
 
@@ -2908,7 +2894,7 @@
       var old = current.filter(function (x) { return x.id === fresh.id; })[0];
       return old ? Object.assign(old, fresh) : fresh;
     });
-    if (!drawer.hidden && !editingLabelId && !openTimePickerSelects) render();
+    if (!drawer.hidden && !listIsBusy()) render();
     updateNextReminder();
   });
 
@@ -3090,29 +3076,23 @@
   drawerCloseBtn.addEventListener('click', function () { setDrawer(false); });
 
   var settingsBtn = document.getElementById('settingsBtn');
-  var settingsBackdrop = document.getElementById('settingsBackdrop');
+  var settingsDialog = document.getElementById('settingsDialog');
   var settingsCloseBtn = document.getElementById('settingsCloseBtn');
 
-  function openSettings() {
-    settingsBackdrop.hidden = false;
+  // A native dialog keeps keyboard focus inside it and closes on Esc by itself.
+  settingsBtn.addEventListener('click', function () {
+    settingsDialog.showModal();
     settingsCloseBtn.focus();
-  }
-
-  function closeSettings() {
-    settingsBackdrop.hidden = true;
-    settingsBtn.focus();
-  }
-
-  settingsBtn.addEventListener('click', openSettings);
-  settingsCloseBtn.addEventListener('click', closeSettings);
-  settingsBackdrop.addEventListener('click', function (e) {
-    if (e.target === settingsBackdrop) closeSettings();
   });
+  settingsCloseBtn.addEventListener('click', function () { settingsDialog.close(); });
+  settingsDialog.addEventListener('click', function (e) {
+    if (e.target === settingsDialog) settingsDialog.close(); // a click on the dimmed backdrop lands on the dialog itself
+  });
+  settingsDialog.addEventListener('close', function () { settingsBtn.focus(); });
   document.addEventListener('keydown', function (e) {
     // defaultPrevented: Esc was already used to cancel an inline edit.
-    if (e.key !== 'Escape' || e.defaultPrevented) return;
-    if (!settingsBackdrop.hidden) closeSettings();
-    else if (!drawer.hidden) setDrawer(false);
+    if (e.key !== 'Escape' || e.defaultPrevented || settingsDialog.open) return;
+    if (!drawer.hidden) setDrawer(false);
   });
 
   var addTimePicker = buildTimePicker(nowHHMM(), 'new reminder', false);
@@ -3142,7 +3122,7 @@
   labelInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true }));
+      form.requestSubmit();
     }
   });
   addCancelBtn.addEventListener('click', function () {
@@ -3245,6 +3225,19 @@
     return key.indexOf('lockedInRoom.') === 0 || key === SETTINGS_KEY;
   }
 
+  // The lists the page walks through on every load, item by item, so one bad item would break them.
+  function listItemsOk(key, value) {
+    if (key === STORAGE_KEY) {
+      return Array.isArray(value) && value.every(function (r) {
+        return r && typeof r.id === 'string' && typeof r.label === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time);
+      });
+    }
+    if (key === 'lockedInRoom.todos.v1') { // the timer script's TODOS_KEY, which this script can't see
+      return Array.isArray(value) && value.every(function (t) { return t && typeof t.text === 'string'; });
+    }
+    return true;
+  }
+
   // Refuses anything that could break the page on its next load, since restoring replaces what's saved.
   function readBackup(parsed) {
     var saved = parsed && parsed.lockedInRoomBackup;
@@ -3253,8 +3246,7 @@
     var valid = keys.length > 0 && keys.every(function (key) {
       if (!isBackupKey(key) || typeof saved[key] !== 'string') return false;
       try {
-        var value = JSON.parse(saved[key]);
-        return key !== STORAGE_KEY || Array.isArray(value);
+        return listItemsOk(key, JSON.parse(saved[key]));
       } catch (e) { return false; }
     });
     return valid ? saved : null;
@@ -3330,8 +3322,15 @@
         return;
       }
       if (!window.confirm('Replace everything on this page with this backup?')) return;
-      Object.keys(localStorage).filter(isBackupKey).forEach(function (key) { localStorage.removeItem(key); });
-      Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+      try {
+        // Write first, and only then drop what the backup doesn't have, so a failed write never leaves you with neither copy.
+        Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+        Object.keys(localStorage).filter(function (key) { return isBackupKey(key) && !(key in backup); })
+          .forEach(function (key) { localStorage.removeItem(key); });
+      } catch (e) {
+        setStatus(importStatus, "This browser wouldn't save the backup, so only part of it may be restored.", 'error');
+        return;
+      }
       location.reload();
       return;
     }

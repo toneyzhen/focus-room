@@ -17,7 +17,7 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'addNoise', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'isBackupKey', 'readBackup'];
+const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'addNoise', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'isBackupKey', 'listItemsOk', 'readBackup'];
 const rulesAt = (when, stats) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
@@ -129,6 +129,13 @@ assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.reminders.v1': '{}' }))
 assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': 3 })), null, 'a value that is not text');
 assert.equal(evening.readBackup(backupOf({})), null, 'an empty backup');
 assert.equal(evening.readBackup([]), null, 'a reminder list is not a backup');
+const reminderList = (items) => backupOf({ 'lockedInRoom.reminders.v1': JSON.stringify(items) });
+assert.ok(evening.readBackup(reminderList([{ id: 'r1', time: '09:30', label: 'Stretch' }])), 'a real reminder');
+assert.equal(evening.readBackup(reminderList([null])), null, 'an empty reminder');
+assert.equal(evening.readBackup(reminderList([{ id: 'r1', time: '9:30', label: 'x' }])), null, 'a reminder with a broken time');
+assert.equal(evening.readBackup(reminderList([{ time: '09:30', label: 'x' }])), null, 'a reminder with no id');
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': '[{"done":true}]' })), null, 'a to-do with no text');
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': '{}' })), null, 'to-dos that are not a list');
 
 // Typing a timer length.
 assert.equal(evening.parseDuration('25'), 1500);
