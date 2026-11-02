@@ -2666,11 +2666,29 @@
     return !!document.querySelector('#toasts .toast[data-kind="' + kind + '"]');
   }
 
+  // Ones that need you to act pulse again every so often until closed, in case the first burst was missed.
+  var REPEATING_GLOW = ['reminder', 'session'];
+  var GLOW_REPEAT_MS = 30000;
+  var glowRepeatTimer = null;
+
+  function pulseGlow(kind) {
+    edgeGlowEl.dataset.kind = kind;
+    edgeGlowEl.classList.remove('pulsing');
+    void edgeGlowEl.offsetWidth; // restarts the animation if it's already running
+    edgeGlowEl.classList.add('pulsing');
+  }
+
   function settleGlow() {
     edgeGlowEl.classList.remove('pulsing');
+    clearTimeout(glowRepeatTimer);
     var kind = GLOW_ORDER.filter(noteIsUp)[0];
     if (kind) edgeGlowEl.dataset.kind = kind;
     else delete edgeGlowEl.dataset.kind;
+    if (REPEATING_GLOW.indexOf(kind) !== -1 && !document.documentElement.classList.contains('reduced-motion')) {
+      glowRepeatTimer = setTimeout(function () {
+        if (noteIsUp(kind)) pulseGlow(kind);
+      }, GLOW_REPEAT_MS);
+    }
   }
 
   new MutationObserver(function (changes) {
@@ -2680,10 +2698,8 @@
       });
     })[0];
     if (added && !document.documentElement.classList.contains('reduced-motion')) {
-      edgeGlowEl.dataset.kind = added;
-      edgeGlowEl.classList.remove('pulsing');
-      void edgeGlowEl.offsetWidth; // restarts the animation if it's already running
-      edgeGlowEl.classList.add('pulsing');
+      clearTimeout(glowRepeatTimer);
+      pulseGlow(added);
     } else if (!edgeGlowEl.classList.contains('pulsing') || !noteIsUp(edgeGlowEl.dataset.kind)) {
       settleGlow();
     }
