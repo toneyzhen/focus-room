@@ -17,12 +17,14 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'addNoise', 'parseDuration'];
-const rulesAt = (when) => {
+const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'addNoise', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'isBackupKey', 'readBackup'];
+const rulesAt = (when, stats) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
   }
-  return new Function('Date', 'MISSED', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(FakeDate, -1e6);
+  const noop = () => {};
+  return new Function('Date', 'MISSED', 'stats', 'saveJSON', 'renderStats', 'STORAGE_KEY', 'SETTINGS_KEY', 'STATS_KEY', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(
+    FakeDate, -1e6, stats, noop, noop, 'lockedInRoom.reminders.v1', 'reminderBell.settings.v1', 'lockedInRoom.stats.v1');
 };
 
 // Ordinary dates, so a clock change can't shift the expected minutes.
@@ -85,6 +87,48 @@ const sounds = [{ notes: [1] }, { text: 'first words' }, { text: 'more words' }]
 evening.addNoise(sounds, [2]);
 evening.addNoise(sounds, [3]);
 assert.deepEqual(sounds.map((s) => s.text || s.notes[0]), [1, 2, 3, 'first words', 'more words']);
+
+// Part-way through a minute: a started task reads as started right away, and countdowns round up.
+const midMinute = rulesAt('2026-10-20T19:20:30');
+assert.equal(midMinute.rawMinutesDiff('19:20'), -1, 'started 30 seconds ago');
+assert.equal(midMinute.rawMinutesDiff('19:21'), 1);
+assert.equal(midMinute.rawMinutesDiff('19:25'), 5);
+
+// Streaks and the daily reset.
+const statsOn = (date, lastActiveDate, streak) => ({ date, lastActiveDate, streak, sessions: 2, focusedSec: 3000 });
+const streakAfterSession = (today, stats) => {
+  rulesAt(today, stats).updateStreak();
+  return [stats.streak, stats.lastActiveDate];
+};
+assert.deepEqual(streakAfterSession('2026-10-21T09:00:00', statsOn('2026-10-21', '2026-10-20', 3)), [4, '2026-10-21'], 'the next day adds one');
+assert.deepEqual(streakAfterSession('2026-10-21T09:00:00', statsOn('2026-10-21', '2026-10-21', 3)), [3, '2026-10-21'], 'a second session the same day adds nothing');
+assert.deepEqual(streakAfterSession('2026-10-21T09:00:00', statsOn('2026-10-21', '2026-10-18', 3)), [1, '2026-10-21'], 'a missed day starts over');
+assert.deepEqual(streakAfterSession('2026-10-21T09:00:00', statsOn('2026-10-21', null, 0)), [1, '2026-10-21'], 'the first session ever');
+assert.equal(evening.daysBetween('2026-11-01', '2026-11-02'), 1, 'a 25-hour day when clocks go back');
+assert.equal(evening.daysBetween('2026-03-08', '2026-03-09'), 1, 'a 23-hour day when clocks go forward');
+
+const afterRollover = (today, stats) => {
+  rulesAt(today, stats).checkRollover();
+  return stats;
+};
+const nextDayStats = afterRollover('2026-10-21T00:01:00', statsOn('2026-10-20', '2026-10-20', 3));
+assert.deepEqual([nextDayStats.date, nextDayStats.sessions, nextDayStats.focusedSec, nextDayStats.streak], ['2026-10-21', 0, 0, 3], 'a new day clears the totals and keeps the streak');
+assert.equal(afterRollover('2026-10-22T00:01:00', statsOn('2026-10-20', '2026-10-20', 3)).streak, 0, 'a whole missed day ends the streak');
+assert.equal(afterRollover('2026-10-20T23:00:00', statsOn('2026-10-20', '2026-10-20', 3)).sessions, 2, 'the same day changes nothing');
+
+assert.ok(!evening.countsAsSession(599), 'short test timers do not count');
+assert.ok(evening.countsAsSession(600));
+
+// Restoring a full backup replaces what's saved, so a damaged one has to be refused.
+const backupOf = (saved) => ({ lockedInRoomBackup: saved });
+const good = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]', 'reminderBell.settings.v1': '{}' };
+assert.deepEqual(evening.readBackup(backupOf(good)), good);
+assert.equal(evening.readBackup(backupOf({ 'someone.elses.key': '1' })), null, 'an unknown key');
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': 'not json' })), null, 'broken JSON');
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.reminders.v1': '{}' })), null, 'reminders that are not a list');
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': 3 })), null, 'a value that is not text');
+assert.equal(evening.readBackup(backupOf({})), null, 'an empty backup');
+assert.equal(evening.readBackup([]), null, 'a reminder list is not a backup');
 
 // Typing a timer length.
 assert.equal(evening.parseDuration('25'), 1500);

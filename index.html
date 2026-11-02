@@ -1005,6 +1005,10 @@
     position:fixed; top:calc(clamp(16px,3vh,36px) + clamp(30px,3.6vw,44px)*1.3 + 22px + 10px); left:50%; transform:translateX(-50%); z-index:60;
     width:min(92vw,360px); max-height:calc(100vh - 140px); overflow-y:auto; display:flex; flex-direction:column; gap:8px;
   }
+  /* Centred in the space beside an open drawer, so they don't cover its controls. On smaller windows the drawer leaves no room. */
+  @media (min-width: 860px){
+    .drawer:not([hidden]) ~ .toasts{ left:calc(50vw + 230px); }
+  }
   /* Catches the eye on a side monitor, where text is easy to miss. Three pulses a little over a second each, well under the 3 flashes a second accessibility guidelines warn about. */
   .edge-glow{
     --note-color:var(--brass); --glow-hold:0.35;
@@ -1014,6 +1018,7 @@
   }
   .edge-glow[data-kind]{ opacity:var(--glow-hold); }
   .edge-glow[data-kind="timer"]{ --note-color:var(--teal); }
+  .edge-glow[data-kind="session"]{ --note-color:var(--focus); }
   .edge-glow[data-kind="hour"]{ --note-color:var(--ink-soft); --glow-hold:0; }
   .edge-glow.pulsing{ animation:edgePulse 1.33s ease-in-out 3; }
   .edge-glow[data-kind="hour"].pulsing{ animation-iteration-count:1; }
@@ -1026,6 +1031,7 @@
     box-shadow:0 12px 32px rgba(0,0,0,0.5);
   }
   .toast[data-kind="timer"]{ --note-color:var(--teal); }
+  .toast[data-kind="session"]{ --note-color:var(--focus); }
   .toast[data-kind="hour"]{ --note-color:var(--ink-soft); }
   .toast[data-kind="warning"]{ --note-color:var(--red); }
   .toast-icon{ flex-shrink:0; width:18px; height:18px; margin-top:1px; color:var(--note-color); }
@@ -1296,7 +1302,7 @@
     <details class="backup-block" id="importDetails">
       <summary>Import reminders</summary>
       <div class="backup-body">
-        <p class="backup-hint">Choose a .json file exported from Locked In Room or Reminder Bell, or paste it below. Imported reminders are added to your current list.</p>
+        <p class="backup-hint">Choose a .json file exported from Locked In Room or Reminder Bell, or paste it below. Imported reminders are added to your current list. A full backup replaces everything instead, after asking you first.</p>
         <div class="backup-row">
           <label class="file-btn">
             Choose file
@@ -1306,6 +1312,18 @@
         </div>
         <textarea class="backup-textarea" id="importInput" rows="6" placeholder="Paste exported JSON here"></textarea>
         <span class="backup-status" id="importStatus"></span>
+      </div>
+    </details>
+
+    <details class="backup-block" id="fullBackupDetails">
+      <summary>Back up everything</summary>
+      <div class="backup-body">
+        <p class="backup-hint">Saves your reminders, to-dos, stats, timers and settings. To restore, use Import reminders above. A full backup replaces everything on this page.</p>
+        <textarea class="backup-textarea" id="fullBackupOutput" readonly rows="6"></textarea>
+        <div class="backup-row">
+          <button type="button" class="ghost-btn" id="fullBackupBtn">Download .json</button>
+          <span class="backup-status" id="fullBackupStatus"></span>
+        </div>
       </div>
     </details>
   </section>
@@ -1521,7 +1539,12 @@
       stats.lastActiveDate = today;
     }
   }
+  // Very short timers are for testing, so they don't touch the goal, streak or totals.
+  function countsAsSession(seconds){
+    return seconds >= 600;
+  }
   function creditSession(){
+    if(!countsAsSession(settings.focus)) return;
     stats = loadJSON(STATS_KEY, stats); // another tab may have added to it
     checkRollover();
     stats.sessions += 1;
@@ -1545,7 +1568,7 @@
       timer.mode = 'focus';
     }
     timer.remaining = durationFor(timer.mode);
-    playChime();
+    document.dispatchEvent(new CustomEvent('sessionend', { detail: { enteringBreak: enteringBreak } })); // the bell script plays and shows it
     flashRing();
     if(enteringBreak){ start(); } else { saveTimer(); render(); }
   }
@@ -1561,25 +1584,6 @@
   function flashRing(){
     ringProgress.style.filter = 'drop-shadow(0 0 22px rgba(240,169,78,0.95))';
     setTimeout(function(){ ringProgress.style.filter = 'drop-shadow(0 0 10px rgba(240,169,78,0.55))'; }, 900);
-  }
-
-  function playChime(){
-    try{
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      var ctx = new Ctx();
-      var notes = [523.25, 659.25];
-      notes.forEach(function(freq, i){
-        var osc = ctx.createOscillator(), gain = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.value = freq;
-        var t0 = ctx.currentTime + i*0.16;
-        gain.gain.setValueAtTime(0, t0);
-        gain.gain.linearRampToValueAtTime(0.18, t0+0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t0+1.1);
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(t0); osc.stop(t0+1.2);
-      });
-      setTimeout(function(){ try{ ctx.close(); }catch(e){} }, 1600);
-    }catch(e){}
   }
 
   /* ---------- rain and fire sounds (generated noise, so there's no audio file to load) ---------- */
@@ -1696,7 +1700,9 @@
     if(isNaN(mins)) return null;
     return Math.round(mins*60);
   }
+  var resumeAfterEdit = false;
   function startEditDigits(){
+    resumeAfterEdit = timer.running;
     if(timer.running) pause();
     digitsEdit.value = formatMMSS(timer.remaining);
     digitsEl.style.display = 'none';
@@ -1707,10 +1713,10 @@
   function commitEditDigits(){
     digitsEdit.style.display = 'none';
     digitsEl.style.display = '';
-    if(digitsEdit.value === formatMMSS(timer.remaining)) return; // only looked, didn't change it
-    var totalSec = parseDuration(digitsEdit.value);
-    if(totalSec === null) return;
-    setSessionLength(totalSec);
+    var totalSec = digitsEdit.value === formatMMSS(timer.remaining) ? null : parseDuration(digitsEdit.value);
+    if(totalSec !== null) setSessionLength(totalSec);
+    else if(resumeAfterEdit) start(); // only looked, or cancelled, so the session carries on
+    resumeAfterEdit = false;
   }
   function setSessionLength(totalSec){
     var b = EDIT_BOUNDS[timer.mode];
@@ -2072,6 +2078,8 @@
   var currentUtterance = null; // held here because some browsers drop an unreferenced one and never say it ended
   var NUDGE_KEY = 'lockedInRoom.nudge.v1';
   var NUDGE_NOTES = [784, 988];
+  var SESSION_NOTES = [523, 659];
+  var LAST_HOUR_KEY = 'lockedInRoom.lastHourlyChime.v1';
   var nudge = loadNudge();
   var lastCheckDay = null;
   var lastCheckHHMM = null;
@@ -2273,7 +2281,9 @@
     var now = new Date();
     var parts = hhmm.split(':');
     var target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
-    return Math.round((target - now) / 60000);
+    // Whole minutes, changing right on the minute, when the list redraws: a started task goes negative straight away.
+    var minutes = (target - now) / 60000;
+    return minutes < 0 ? Math.floor(minutes) : Math.ceil(minutes);
   }
 
   // Ordering key used to sort the list: soonest-upcoming first. Any
@@ -2333,9 +2343,7 @@
   function setCompleted(r, completed) {
     r.completed = completed;
     r.completedDateKey = completed ? todayKey() : null;
-    if (completed) {
-      document.querySelectorAll('#toasts .toast').forEach(function (note) { if (note.dataset.id === r.id) note.remove(); });
-    }
+    if (completed) removeReminderNote(r.id);
     saveReminders();
     render();
     updateNextReminder();
@@ -2500,6 +2508,7 @@
         confirmDel.textContent = 'Delete';
         confirmDel.addEventListener('click', function () {
           cancelPendingDelete();
+          removeReminderNote(r.id);
           reminders = reminders.filter(function (x) { return x.id !== r.id; });
           saveReminders();
           render();
@@ -2606,7 +2615,8 @@
 
   function playChime(notes) {
     var ctx = ensureAudio();
-    if (!ctx) return;
+    // While the browser blocks audio its clock stands still, so chimes scheduled now would all sound together on the first click.
+    if (!ctx || ctx.state !== 'running') return;
     var now = ctx.currentTime;
     notes.forEach(function (freq, i) {
       var osc = ctx.createOscillator();
@@ -2637,12 +2647,22 @@
     } catch (e) { done(); }
   }
 
-  function fireHourlyChime(now) {
-    queueNoise(HOUR_NOTES);
+  // With two tabs open, each shows the note but only the first one here makes a sound.
+  function claimHourSound(hourKey) {
+    try {
+      if (localStorage.getItem(LAST_HOUR_KEY) === hourKey) return false;
+      localStorage.setItem(LAST_HOUR_KEY, hourKey);
+    } catch (e) {}
+    return true;
+  }
+
+  function fireHourlyChime(now, withSound) {
     var h = now.getHours();
     var h12 = h % 12; if (h12 === 0) h12 = 12;
     var ampm = h >= 12 ? 'PM' : 'AM';
     showNote('hour', "It's " + h12 + ' ' + ampm);
+    if (!withSound) return;
+    queueNoise(HOUR_NOTES);
     queueSpeech("It's " + h12 + ' ' + ampm);
   }
 
@@ -2650,12 +2670,13 @@
   var NOTE_KINDS = {
     reminder: { label: 'Starting now', ms: 0, icon: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>' },
     timer: { label: 'Repeating timer', ms: 0, icon: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>' }, // nothing else shows it rang, so it stays
+    session: { label: 'Focus timer', ms: 0, icon: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>' },
     hour: { label: 'Hourly', ms: 5000, icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>' },
     warning: { label: 'Not saved', ms: 0, icon: '<path d="M12 3L2 21h20Z"/><path d="M12 10v5"/><path d="M12 18h.01"/>' }
   };
 
   // Follows whatever notes are up, however they got there or left: a new note pulses in its own color, then the most urgent one still up holds.
-  var GLOW_ORDER = ['reminder', 'timer', 'hour'];
+  var GLOW_ORDER = ['reminder', 'session', 'timer', 'hour'];
   var edgeGlowEl = document.getElementById('edgeGlow');
 
   function noteIsUp(kind) {
@@ -2689,6 +2710,17 @@
   function removeNotes(selector) {
     document.querySelectorAll('#toasts .toast' + selector).forEach(function (note) { note.remove(); });
   }
+
+  function removeReminderNote(id) {
+    document.querySelectorAll('#toasts .toast').forEach(function (note) { if (note.dataset.id === id) note.remove(); });
+  }
+
+  document.addEventListener('sessionend', function (e) {
+    removeNotes('[data-kind="session"]');
+    showNote('session', e.detail.enteringBreak ? 'Focus session done. Break started.' : 'Break over. Ready for the next session.');
+    queueNoise(SESSION_NOTES);
+  });
+  document.getElementById('startBtn').addEventListener('click', function () { removeNotes('[data-kind="session"]'); });
 
   function showNote(kind, text, id) {
     if (!settings.showNotes && kind !== 'warning') return; // a failed save puts data at risk, so it always shows
@@ -2843,7 +2875,7 @@
       var hourKey = tKey + '-' + pad(h);
       if (lastHourlyChimeKey !== hourKey) {
         lastHourlyChimeKey = hourKey;
-        fireHourlyChime(now);
+        fireHourlyChime(now, claimHourSound(hourKey));
       }
     }
 
@@ -2865,6 +2897,10 @@
       nudge = loadNudge();
       fillNudgeForm();
       renderNudge();
+    }
+    if (e.key === SETTINGS_KEY) {
+      settings = loadSettings();
+      fillSettingsForm();
     }
     if (e.key !== STORAGE_KEY) return;
     var current = reminders;
@@ -2960,11 +2996,16 @@
     overdueListEl.appendChild(item);
   }
 
+  ensureAudio();
   document.addEventListener('pointerdown', ensureAudio, { once: true });
+  document.addEventListener('keydown', ensureAudio, { once: true });
 
-  hourlyChimeToggle.checked = settings.hourlyChime;
-  reminderSoundToggle.checked = settings.reminderSound;
-  showNotesToggle.checked = settings.showNotes;
+  function fillSettingsForm() {
+    hourlyChimeToggle.checked = settings.hourlyChime;
+    reminderSoundToggle.checked = settings.reminderSound;
+    showNotesToggle.checked = settings.showNotes;
+  }
+  fillSettingsForm();
 
   showNotesToggle.addEventListener('change', function () {
     settings.showNotes = showNotesToggle.checked;
@@ -2989,8 +3030,10 @@
     showNote('reminder', 'Your task appears here');
     showNote('timer', 'Your repeating timer appears here');
     queueNoise(NUDGE_NOTES);
+    showNote('session', 'Focus session done. Break started.');
+    queueNoise(SESSION_NOTES);
     queueSpeech('This is a test reminder.');
-    fireHourlyChime(new Date());
+    fireHourlyChime(new Date(), true);
   });
 
   // --- Settings dialog (sound + voice toggles live behind the gear icon,
@@ -3176,22 +3219,62 @@
     }
   });
 
-  downloadBtn.addEventListener('click', function () {
-    refreshExportOutput();
+  function downloadJson(text, filename, statusEl) {
     try {
-      var blob = new Blob([exportOutput.value], { type: 'application/json' });
+      var blob = new Blob([text], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'locked-in-room-reminders-' + todayKey() + '.json';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-      setStatus(exportStatus, 'Downloaded.', 'success');
+      setStatus(statusEl, 'Downloaded.', 'success');
     } catch (e) {
-      setStatus(exportStatus, "Couldn't start a download here — copy the text instead.", 'error');
+      setStatus(statusEl, "Couldn't start a download here — copy the text instead.", 'error');
     }
+  }
+
+  downloadBtn.addEventListener('click', function () {
+    refreshExportOutput();
+    downloadJson(exportOutput.value, 'locked-in-room-reminders-' + todayKey() + '.json', exportStatus);
+  });
+
+  function isBackupKey(key) {
+    return key.indexOf('lockedInRoom.') === 0 || key === SETTINGS_KEY;
+  }
+
+  // Refuses anything that could break the page on its next load, since restoring replaces what's saved.
+  function readBackup(parsed) {
+    var saved = parsed && parsed.lockedInRoomBackup;
+    if (!saved || typeof saved !== 'object') return null;
+    var keys = Object.keys(saved);
+    var valid = keys.length > 0 && keys.every(function (key) {
+      if (!isBackupKey(key) || typeof saved[key] !== 'string') return false;
+      try {
+        var value = JSON.parse(saved[key]);
+        return key !== STORAGE_KEY || Array.isArray(value);
+      } catch (e) { return false; }
+    });
+    return valid ? saved : null;
+  }
+
+  function fullBackupText() {
+    var saved = {};
+    Object.keys(localStorage).filter(isBackupKey).forEach(function (key) { saved[key] = localStorage.getItem(key); });
+    return JSON.stringify({ lockedInRoomBackup: saved }, null, 2);
+  }
+
+  var fullBackupOutput = document.getElementById('fullBackupOutput');
+  var fullBackupStatus = document.getElementById('fullBackupStatus');
+  document.getElementById('fullBackupDetails').addEventListener('toggle', function () {
+    fullBackupOutput.value = fullBackupText();
+    setStatus(fullBackupStatus, '');
+  });
+  document.getElementById('fullBackupBtn').addEventListener('click', function () {
+    fullBackupOutput.value = fullBackupText();
+    downloadJson(fullBackupOutput.value, 'locked-in-room-backup-' + todayKey() + '.json', fullBackupStatus);
   });
 
   copyBtn.addEventListener('click', function () {
@@ -3238,6 +3321,18 @@
       parsed = JSON.parse(text);
     } catch (e) {
       setStatus(importStatus, "That doesn't look like valid JSON.", 'error');
+      return;
+    }
+    if (parsed && parsed.lockedInRoomBackup) {
+      var backup = readBackup(parsed);
+      if (!backup) {
+        setStatus(importStatus, "That backup looks damaged, so nothing was changed.", 'error');
+        return;
+      }
+      if (!window.confirm('Replace everything on this page with this backup?')) return;
+      Object.keys(localStorage).filter(isBackupKey).forEach(function (key) { localStorage.removeItem(key); });
+      Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+      location.reload();
       return;
     }
     if (!Array.isArray(parsed)) {
