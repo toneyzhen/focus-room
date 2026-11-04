@@ -997,6 +997,10 @@
     position:fixed; top:calc(clamp(16px,3vh,36px) + clamp(30px,3.6vw,44px)*1.3 + 22px + 10px); left:50%; transform:translateX(-50%); z-index:60;
     width:min(92vw,360px); max-height:calc(100vh - 140px); overflow-y:auto; display:flex; flex-direction:column; gap:8px;
   }
+  /* Wide windows: just right of the reminder list (its right edge is 6vw + 270px) and clear of the ring (at most 160px from centre), so a pile of notes can't cover the timer. Narrower windows have no room there. */
+  @media (min-width: 1700px){
+    .toasts{ width:min(360px, 44vw - 470px); left:calc(6vw + 286px + min(180px, 22vw - 235px)); }
+  }
   /* Centred in the space beside an open drawer, so they don't cover its controls. On smaller windows the drawer leaves no room. */
   @media (min-width: 860px){
     .drawer:not([hidden]) ~ .toasts{ left:calc(50vw + 230px); }
