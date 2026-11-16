@@ -526,18 +526,21 @@
 
   .settings-dialog::backdrop { background: rgba(30, 22, 10, 0.45); }
 
-  /* Covers the room, timer included, so a due reminder can't be worked around. */
+  /* Covers the room, timer included, so a due reminder or timer ring can't be worked around. */
   .takeover {
+    --note-color: var(--brass);
     width: min(560px, calc(100% - 40px));
     max-width: none;
     padding: 32px 28px;
-    border: 2px solid var(--brass);
+    border: 2px solid var(--note-color);
     border-radius: 16px;
     background: var(--surface);
     color: inherit;
     text-align: center;
-    box-shadow: 0 0 80px rgba(224, 162, 76, 0.35);
+    box-shadow: 0 0 80px color-mix(in srgb, var(--note-color) 35%, transparent);
   }
+
+  .takeover[data-kind="timer"] { --note-color: var(--teal); }
 
   .takeover::backdrop { background: rgba(12, 8, 4, 0.88); }
 
@@ -547,7 +550,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--brass);
+    color: var(--note-color);
   }
 
   .takeover-kind:focus { outline: none; } /* focused only so a keystroke mid-typing can't press "On it" */
@@ -2767,29 +2770,38 @@
   }).observe(document.getElementById('toasts'), { childList: true });
   edgeGlowEl.addEventListener('animationend', settleGlow);
 
-  // A due reminder fills the screen until you say you're on it, since a note off to the side gets tuned out.
+  // A due reminder or timer ring fills the screen until you say you're on it, since a note off to the side gets tuned out.
+  var TAKEOVER_KINDS = ['reminder', 'timer'];
   var takeoverEl = document.getElementById('takeover');
   var takeoverTasksEl = document.getElementById('takeoverTasks');
 
+  function clearTakeoverNotes() {
+    TAKEOVER_KINDS.forEach(function (kind) { removeNotes('[data-kind="' + kind + '"]'); });
+  }
+
   function syncTakeover() {
-    var tasks = document.querySelectorAll('#toasts .toast[data-kind="reminder"] .toast-text');
-    if (!tasks.length) {
+    var kinds = TAKEOVER_KINDS.filter(noteIsUp);
+    if (!kinds.length) {
       if (takeoverEl.open) takeoverEl.close();
       return;
     }
+    takeoverEl.dataset.kind = kinds[0];
+    document.getElementById('takeoverKind').textContent = kinds.map(function (kind) { return NOTE_KINDS[kind].label; }).join(' · ');
     takeoverTasksEl.textContent = '';
-    tasks.forEach(function (task) {
-      var item = document.createElement('li');
-      item.textContent = task.textContent;
-      takeoverTasksEl.appendChild(item);
+    kinds.forEach(function (kind) {
+      document.querySelectorAll('#toasts .toast[data-kind="' + kind + '"] .toast-text').forEach(function (task) {
+        var item = document.createElement('li');
+        item.textContent = task.textContent;
+        takeoverTasksEl.appendChild(item);
+      });
     });
     if (!takeoverEl.open) takeoverEl.showModal();
   }
 
   new MutationObserver(syncTakeover).observe(document.getElementById('toasts'), { childList: true });
   // Clearing the notes closes it. Esc closes it too, and then the notes go the same way.
-  takeoverEl.addEventListener('close', function () { removeNotes('[data-kind="reminder"]'); });
-  document.getElementById('takeoverOkBtn').addEventListener('click', function () { removeNotes('[data-kind="reminder"]'); });
+  takeoverEl.addEventListener('close', clearTakeoverNotes);
+  document.getElementById('takeoverOkBtn').addEventListener('click', clearTakeoverNotes);
 
   function removeNotes(selector) {
     document.querySelectorAll('#toasts .toast' + selector).forEach(function (note) { note.remove(); });
