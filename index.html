@@ -526,6 +526,46 @@
 
   .settings-dialog::backdrop { background: rgba(30, 22, 10, 0.45); }
 
+  /* Covers the room, timer included, so a due reminder can't be worked around. */
+  .takeover {
+    width: min(560px, calc(100% - 40px));
+    max-width: none;
+    padding: 32px 28px;
+    border: 2px solid var(--brass);
+    border-radius: 16px;
+    background: var(--surface);
+    color: inherit;
+    text-align: center;
+    box-shadow: 0 0 80px rgba(224, 162, 76, 0.35);
+  }
+
+  .takeover::backdrop { background: rgba(12, 8, 4, 0.88); }
+
+  .takeover-kind {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--brass);
+  }
+
+  .takeover-kind:focus { outline: none; } /* focused only so a keystroke mid-typing can't press "On it" */
+
+  .takeover-tasks {
+    list-style: none;
+    margin: 14px 0 26px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: clamp(24px, 3.2vw, 38px);
+    line-height: 1.25;
+    overflow-wrap: break-word;
+  }
+
+  .takeover-tasks li + li { padding-top: 8px; border-top: 1px solid var(--line); }
+
   .modal {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -1356,6 +1396,12 @@
       <button class="link-btn" id="testSoundBtn" type="button">Test sounds and notifications</button>
     </div>
   </div>
+</dialog>
+
+<dialog class="takeover" id="takeover" aria-labelledby="takeoverKind">
+  <p class="takeover-kind" id="takeoverKind" tabindex="-1" autofocus>Starting now</p>
+  <ul class="takeover-tasks" id="takeoverTasks"></ul>
+  <button type="button" class="btn btn-primary" id="takeoverOkBtn">On it</button>
 </dialog>
 
   <div class="edge-glow" id="edgeGlow" aria-hidden="true"></div>
@@ -2720,6 +2766,30 @@
     }
   }).observe(document.getElementById('toasts'), { childList: true });
   edgeGlowEl.addEventListener('animationend', settleGlow);
+
+  // A due reminder fills the screen until you say you're on it, since a note off to the side gets tuned out.
+  var takeoverEl = document.getElementById('takeover');
+  var takeoverTasksEl = document.getElementById('takeoverTasks');
+
+  function syncTakeover() {
+    var tasks = document.querySelectorAll('#toasts .toast[data-kind="reminder"] .toast-text');
+    if (!tasks.length) {
+      if (takeoverEl.open) takeoverEl.close();
+      return;
+    }
+    takeoverTasksEl.textContent = '';
+    tasks.forEach(function (task) {
+      var item = document.createElement('li');
+      item.textContent = task.textContent;
+      takeoverTasksEl.appendChild(item);
+    });
+    if (!takeoverEl.open) takeoverEl.showModal();
+  }
+
+  new MutationObserver(syncTakeover).observe(document.getElementById('toasts'), { childList: true });
+  // Clearing the notes closes it. Esc closes it too, and then the notes go the same way.
+  takeoverEl.addEventListener('close', function () { removeNotes('[data-kind="reminder"]'); });
+  document.getElementById('takeoverOkBtn').addEventListener('click', function () { removeNotes('[data-kind="reminder"]'); });
 
   function removeNotes(selector) {
     document.querySelectorAll('#toasts .toast' + selector).forEach(function (note) { note.remove(); });
