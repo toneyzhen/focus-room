@@ -1050,13 +1050,11 @@
   }
   /* Catches the eye on a side monitor, where text is easy to miss. Dark between bursts, so each one stands out. Three pulses a little over a second each, and the stronger burst under two a second, both under the 3 flashes a second accessibility guidelines warn about. */
   .edge-glow{
-    --note-color:var(--brass);
+    --note-color:var(--focus);
     position:fixed; inset:0; z-index:59; pointer-events:none;
     box-shadow:inset 0 0 110px 34px var(--note-color);
     opacity:0;
   }
-  .edge-glow[data-kind="timer"]{ --note-color:var(--teal); }
-  .edge-glow[data-kind="session"]{ --note-color:var(--focus); }
   .edge-glow[data-kind="hour"]{ --note-color:var(--ink-soft); }
   .edge-glow.pulsing{ animation:edgePulse 1.33s ease-in-out 3; }
   .edge-glow[data-kind="hour"].pulsing{ animation-iteration-count:1; }
@@ -2712,15 +2710,15 @@
   };
 
   // Follows whatever notes are up, however they got there or left: a new note pulses in its own color, then the most urgent one still up holds.
-  var GLOW_ORDER = ['reminder', 'session', 'timer', 'hour'];
+  // Reminders and the repeating timer take over the room instead, which hides the edges anyway.
+  var GLOW_ORDER = ['session', 'hour'];
   var edgeGlowEl = document.getElementById('edgeGlow');
 
   function noteIsUp(kind) {
     return !!document.querySelector('#toasts .toast[data-kind="' + kind + '"]');
   }
 
-  // Ones that need you to act pulse again every so often until closed, in case the first burst was missed.
-  var REPEATING_GLOW = ['reminder', 'session', 'timer'];
+  // A session note waits for you to act, so it pulses again every so often until closed, in case the first burst was missed.
   var GLOW_REPEAT_MS = 20000;
   var GLOW_STRONG_AFTER_MS = 3 * 60000;
   var glowRepeatTimer = null;
@@ -2744,7 +2742,7 @@
     var kind = GLOW_ORDER.filter(noteIsUp)[0];
     if (kind) edgeGlowEl.dataset.kind = kind;
     else delete edgeGlowEl.dataset.kind;
-    if (REPEATING_GLOW.indexOf(kind) !== -1) {
+    if (kind === 'session') {
       glowRepeatTimer = setTimeout(function () {
         if (noteIsUp(kind)) pulseGlow(kind, upLongest(kind) >= GLOW_STRONG_AFTER_MS);
       }, GLOW_REPEAT_MS);
