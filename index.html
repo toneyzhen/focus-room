@@ -128,12 +128,12 @@
   }
   .stage{ display:flex; justify-content:center; width:100%; }
   /* Low-key, so it doesn't add clutter: an outline chip in the corner. */
-  .room-backup{
+  .room-settings{
     display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; cursor:pointer;
     background:none; border:1px solid rgba(245,234,212,0.18); color:var(--cream-dim); font-size:12px;
   }
-  .room-backup svg{ width:13px; height:13px; }
-  .room-backup:hover{ border-color:var(--amber); color:var(--amber-soft); }
+  .room-settings svg{ width:13px; height:13px; }
+  .room-settings:hover{ border-color:var(--amber); color:var(--amber-soft); }
 
   /* A 16:10 computer monitor in the middle of the room: the timer is the open app, and the clock sits in the taskbar's corner.
      It's a size container, so the ring inside scales with whatever size the monitor gets: its height less the buttons, taskbar and padding (96px), and no wider than 40% of it. */
@@ -167,7 +167,7 @@
     .ui .topbar, .ui .hero{ display:contents; }
     .ui .reminder-bell{ grid-column:1; grid-row:1 / 3; align-self:start; width:auto; max-height:100%; overflow-y:auto; }
     .ui .priorities{ grid-column:2; grid-row:1; justify-self:center; margin-bottom:12px; } /* no row gap, so the monitor's stand reaches the desk */
-    .ui .room-backup{ grid-column:3; grid-row:1; justify-self:end; align-self:start; }
+    .ui .room-settings{ grid-column:3; grid-row:1; justify-self:end; align-self:start; }
     .ui .stage{ grid-column:2; grid-row:2; min-height:0; container-type:size; align-items:flex-end; padding-bottom:var(--stand); }
     .ui .monitor{ width:min(100cqw, 100cqh*1.6, 720px); } /* as big as the stage allows, keeping 16:10 */
     .ui .diary{ grid-column:1; grid-row:3; align-self:center; justify-self:start; }
@@ -473,6 +473,15 @@
   }
 
   .settings-dialog::backdrop { background: rgba(30, 22, 10, 0.45); }
+
+  .settings-section {
+    margin: 18px 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+  }
 
   /* Covers the room, timer included, so no notification can be worked around: it stays until you click it away. */
   .takeover {
@@ -884,54 +893,6 @@
     padding-top: 4px;
   }
 
-  .backup-block {
-    border-top: 1px solid var(--line);
-    padding-top: 12px;
-    margin-top: 12px;
-  }
-
-  .backup-block:first-of-type {
-    border-top: none;
-    padding-top: 0;
-    margin-top: 0;
-  }
-
-  .backup-block summary {
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink);
-  }
-
-  .backup-block summary:hover { color: var(--brass); }
-  .backup-block summary::marker { color: var(--ink-soft); }
-
-  .backup-body {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .backup-hint {
-    font-size: 13px;
-    color: var(--ink-soft);
-    margin: 0;
-  }
-
-  .backup-textarea {
-    width: 100%;
-    min-height: 110px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--ink);
-    background: var(--paper);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 10px;
-    resize: vertical;
-  }
-
   .backup-row {
     display: flex;
     align-items: center;
@@ -1060,9 +1021,9 @@
       </div>
       <div class="overdue-list" id="overdueList"></div>
     </div>
-    <button class="room-backup" id="roomBackupBtn" type="button" aria-haspopup="dialog">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-      Back up room
+    <button class="room-settings" id="settingsBtn" type="button" aria-haspopup="dialog">
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8.32 2.58c.1-.44.5-.75.95-.75h1.460c.45 0 .84.31.95.75l.24.99c.42.14.82.33 1.19.56l.9-.5a.98.98 0 0 1 1.18.16l1.03 1.03c.32.32.38.8.16 1.18l-.5.9c.23.37.42.77.56 1.19l.99.24c.44.1.75.5.75.95v1.46c0 .45-.31.84-.75.95l-.99.24a5.6 5.6 0 0 1-.56 1.19l.5.9a.98.98 0 0 1-.16 1.18l-1.03 1.03a.98.98 0 0 1-1.18.16l-.9-.5c-.37.23-.77.42-1.19.56l-.24.99c-.1.44-.5.75-.95.75H9.27c-.45 0-.84-.31-.95-.75l-.24-.99a5.6 5.6 0 0 1-1.19-.56l-.9.5a.98.98 0 0 1-1.18-.16l-1.03-1.03a.98.98 0 0 1-.16-1.18l.5-.9a5.6 5.6 0 0 1-.56-1.19l-.99-.24a.98.98 0 0 1-.75-.95V9.27c0-.45.31-.84.75-.95l.99-.24c.14-.42.33-.82.56-1.19l-.5-.9a.98.98 0 0 1 .16-1.18l1.03-1.03a.98.98 0 0 1 1.18-.16l.9.5c.37-.23.77-.42 1.19-.56l.24-.99ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+      Settings
     </button>
   </div>
 
@@ -1161,11 +1122,6 @@
   <aside class="drawer" id="drawer" aria-label="Reminders" hidden>
     <div class="drawer-header">
       <div class="drawer-title">Reminders</div>
-      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Notification settings" aria-haspopup="dialog">
-    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M8.32 2.58c.1-.44.5-.75.95-.75h1.46c.45 0 .84.31.95.75l.24.99c.42.14.82.33 1.19.56l.9-.5a.98.98 0 0 1 1.18.16l1.03 1.03c.32.32.38.8.16 1.18l-.5.9c.23.37.42.77.56 1.19l.99.24c.44.1.75.5.75.95v1.46c0 .45-.31.84-.75.95l-.99.24a5.6 5.6 0 0 1-.56 1.19l.5.9a.98.98 0 0 1-.16 1.18l-1.03 1.03a.98.98 0 0 1-1.18.16l-.9-.5c-.37.23-.77.42-1.19.56l-.24.99c-.1.44-.5.75-.95.75H9.27c-.45 0-.84-.31-.95-.75l-.24-.99a5.6 5.6 0 0 1-1.19-.56l-.9.5a.98.98 0 0 1-1.18-.16l-1.03-1.03a.98.98 0 0 1-.16-1.18l.5-.9a5.6 5.6 0 0 1-.56-1.19l-.99-.24a.98.98 0 0 1-.75-.95V9.27c0-.45.31-.84.75-.95l.99-.24c.14-.42.33-.82.56-1.19l-.5-.9a.98.98 0 0 1 .16-1.18l1.03-1.03a.98.98 0 0 1 1.18-.16l.9.5c.37-.23.77-.42 1.19-.56l.24-.99ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-    </svg>
-      </button>
       <button class="icon-btn" id="drawerCloseBtn" type="button" aria-label="Close reminders">×</button>
     </div>
 
@@ -1232,74 +1188,22 @@
     <ul class="reminder-list" id="reminderList"></ul>
   </section>
 
-  <section class="panel">
-    <h2>Backup</h2>
-
-    <details class="backup-block" id="exportDetails">
-      <summary>Export reminders</summary>
-      <div class="backup-body">
-        <p class="backup-hint">Saves a .json file of your list. If the download doesn't reach your files, copy the text below instead.</p>
-        <textarea class="backup-textarea" id="exportOutput" readonly rows="6"></textarea>
-        <div class="backup-row">
-          <button type="button" class="ghost-btn" id="downloadBtn">Download .json</button>
-          <button type="button" class="ghost-btn" id="copyBtn">Copy to clipboard</button>
-          <span class="backup-status" id="exportStatus"></span>
-        </div>
-      </div>
-    </details>
-
-    <details class="backup-block" id="importDetails">
-      <summary>Import reminders</summary>
-      <div class="backup-body">
-        <p class="backup-hint">Choose a .json file exported from Locked In Room or Reminder Bell, or paste it below. Imported reminders are added to your current list. A full backup replaces everything instead, after asking you first.</p>
-        <div class="backup-row">
-          <label class="file-btn">
-            Choose file
-            <input type="file" id="importFile" accept="application/json,.json" hidden>
-          </label>
-          <button type="button" class="primary-btn" id="importBtn">Import</button>
-        </div>
-        <textarea class="backup-textarea" id="importInput" rows="6" placeholder="Paste exported JSON here"></textarea>
-        <span class="backup-status" id="importStatus"></span>
-      </div>
-    </details>
-
-    <details class="backup-block" id="fullBackupDetails">
-      <summary>Back up everything</summary>
-      <div class="backup-body">
-        <p class="backup-hint">Saves your reminders, priorities, brain dump, stats, timers and settings. To restore, use Import reminders above. A full backup replaces everything on this page.</p>
-        <textarea class="backup-textarea" id="fullBackupOutput" readonly rows="6"></textarea>
-        <div class="backup-row">
-          <button type="button" class="ghost-btn" id="fullBackupBtn">Download .json</button>
-          <span class="backup-status" id="fullBackupStatus"></span>
-        </div>
-      </div>
-    </details>
-  </section>
-
     <footer>Reminders only run while this page is open. Refreshing keeps your list.</footer>
   </aside>
 
 <dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
   <div class="modal">
     <div class="modal-header">
-      <h2 id="settingsTitle">Notifications</h2>
+      <h2 id="settingsTitle">Settings</h2>
       <button class="modal-close" id="settingsCloseBtn" type="button" aria-label="Close">×</button>
     </div>
+    <h3 class="settings-section">Notifications</h3>
     <p class="panel-hint">The room is silent. Reminders, the repeating timer and the focus timer each fill the screen until you click them away.</p>
     <div class="field-row">
       <button class="link-btn" id="testNotesBtn" type="button">Test notifications</button>
     </div>
-  </div>
-</dialog>
-
-<dialog class="settings-dialog" id="roomBackupDialog" aria-labelledby="roomBackupTitle">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="roomBackupTitle">Back up your room</h2>
-      <button class="modal-close" id="roomBackupClose" type="button" aria-label="Close">×</button>
-    </div>
-    <p class="panel-hint">Everything here lives only in this browser: reminders, priorities, the brain dump and your timer settings. Download a copy now and then and keep it somewhere safe.</p>
+    <h3 class="settings-section">Back up your room</h3>
+    <p class="panel-hint">Everything here lives only in this browser: reminders, the repeating timer, priorities, the brain dump and your timer settings. Download a copy now and then and keep it somewhere safe.</p>
     <p class="panel-hint" id="roomBackupLast"></p>
     <div class="backup-row">
       <button type="button" class="ghost-btn" id="roomBackupDownload">Download backup</button>
@@ -2683,40 +2587,12 @@
   tick();
   setInterval(tick, 1000);
 
-  // --- Export / import ---
-
-  var exportDetails = document.getElementById('exportDetails');
-  var exportOutput = document.getElementById('exportOutput');
-  var exportStatus = document.getElementById('exportStatus');
-  var downloadBtn = document.getElementById('downloadBtn');
-  var copyBtn = document.getElementById('copyBtn');
-  var importDetails = document.getElementById('importDetails');
-  var importFile = document.getElementById('importFile');
-  var importInput = document.getElementById('importInput');
-  var importBtn = document.getElementById('importBtn');
-  var importStatus = document.getElementById('importStatus');
-
-  function toExportData() {
-    return reminders.map(function (r) {
-      return { time: r.time, label: r.label, repeat: !!r.repeat };
-    });
-  }
+  // --- Backup (in the settings window) ---
 
   function setStatus(el, text, kind) {
     el.textContent = text;
     el.className = 'backup-status' + (kind ? ' ' + kind : '');
   }
-
-  function refreshExportOutput() {
-    exportOutput.value = JSON.stringify(toExportData(), null, 2);
-  }
-
-  exportDetails.addEventListener('toggle', function () {
-    if (exportDetails.open) {
-      refreshExportOutput();
-      setStatus(exportStatus, '');
-    }
-  });
 
   function downloadJson(text, filename, statusEl) {
     try {
@@ -2731,14 +2607,9 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       setStatus(statusEl, 'Downloaded.', 'success');
     } catch (e) {
-      setStatus(statusEl, "Couldn't start a download here — copy the text instead.", 'error');
+      setStatus(statusEl, "Couldn't start a download in this browser.", 'error');
     }
   }
-
-  downloadBtn.addEventListener('click', function () {
-    refreshExportOutput();
-    downloadJson(exportOutput.value, 'locked-in-room-reminders-' + todayKey() + '.json', exportStatus);
-  });
 
   function isBackupKey(key) {
     return key.indexOf('lockedInRoom.') === 0 || key === SETTINGS_KEY;
@@ -2777,17 +2648,6 @@
     return JSON.stringify({ lockedInRoomBackup: saved }, null, 2);
   }
 
-  var fullBackupOutput = document.getElementById('fullBackupOutput');
-  var fullBackupStatus = document.getElementById('fullBackupStatus');
-  document.getElementById('fullBackupDetails').addEventListener('toggle', function () {
-    fullBackupOutput.value = fullBackupText();
-    setStatus(fullBackupStatus, '');
-  });
-  document.getElementById('fullBackupBtn').addEventListener('click', function () {
-    fullBackupOutput.value = fullBackupText();
-    downloadJson(fullBackupOutput.value, 'locked-in-room-backup-' + todayKey() + '.json', fullBackupStatus);
-  });
-
   function restoreBackup(backup, statusEl) {
     if (!window.confirm('Replace everything in the room with this backup?')) return;
     try {
@@ -2802,9 +2662,8 @@
     location.reload();
   }
 
-  // The same full backup from a button in the room, so it isn't buried in the reminders drawer.
+  // Everything the room saves, reminders included, in one file.
   var LAST_BACKUP_KEY = 'lockedInRoom.lastBackup.v1';
-  var roomBackupDialog = document.getElementById('roomBackupDialog');
   var roomBackupStatus = document.getElementById('roomBackupStatus');
   var roomBackupFile = document.getElementById('roomBackupFile');
   function showLastBackup() {
@@ -2812,10 +2671,9 @@
     try { last = localStorage.getItem(LAST_BACKUP_KEY); } catch (e) {}
     document.getElementById('roomBackupLast').textContent = last ? 'Last downloaded on ' + last + '.' : "You haven't downloaded a backup yet.";
   }
-  document.getElementById('roomBackupBtn').addEventListener('click', function () {
+  settingsBtn.addEventListener('click', function () {
     setStatus(roomBackupStatus, '');
     showLastBackup();
-    roomBackupDialog.showModal();
   });
   document.getElementById('roomBackupDownload').addEventListener('click', function () {
     downloadJson(fullBackupText(), 'locked-in-room-backup-' + todayKey() + '.json', roomBackupStatus);
@@ -2833,7 +2691,7 @@
       var parsed = null;
       try { parsed = JSON.parse(evt.target.result); } catch (err) {}
       if (!parsed || !parsed.lockedInRoomBackup) {
-        setStatus(roomBackupStatus, "That isn't a room backup. A reminders export goes in the drawer's Import instead.", 'error');
+        setStatus(roomBackupStatus, "That isn't a room backup, so nothing was changed.", 'error');
         return;
       }
       var backup = readBackup(parsed);
@@ -2845,94 +2703,6 @@
     };
     reader.onerror = function () { setStatus(roomBackupStatus, "Couldn't read that file.", 'error'); };
     reader.readAsText(file);
-  });
-  document.getElementById('roomBackupClose').addEventListener('click', function () { roomBackupDialog.close(); });
-  roomBackupDialog.addEventListener('click', function (e) { if (e.target === roomBackupDialog) roomBackupDialog.close(); }); // a click on the dimmed backdrop lands on the dialog itself
-
-  copyBtn.addEventListener('click', function () {
-    refreshExportOutput();
-    var data = exportOutput.value;
-    exportOutput.focus();
-    exportOutput.setSelectionRange(0, data.length);
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(data).then(function () {
-        setStatus(exportStatus, 'Copied to clipboard.', 'success');
-      }).catch(function () {
-        setStatus(exportStatus, 'Selected — press Ctrl/Cmd+C to copy.', '');
-      });
-    } else {
-      var copied = false;
-      try { copied = document.execCommand('copy'); } catch (e) {}
-      setStatus(exportStatus, copied ? 'Copied to clipboard.' : 'Selected — press Ctrl/Cmd+C to copy.', copied ? 'success' : '');
-    }
-  });
-
-  importFile.addEventListener('change', function (e) {
-    var file = e.target.files && e.target.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function (evt) {
-      importInput.value = evt.target.result;
-      setStatus(importStatus, 'File loaded — click Import to add it.', '');
-    };
-    reader.onerror = function () {
-      setStatus(importStatus, "Couldn't read that file.", 'error');
-    };
-    reader.readAsText(file);
-    importFile.value = '';
-  });
-
-  importBtn.addEventListener('click', function () {
-    var text = importInput.value.trim();
-    if (!text) {
-      setStatus(importStatus, 'Choose a file or paste JSON first.', 'error');
-      return;
-    }
-    var parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch (e) {
-      setStatus(importStatus, "That doesn't look like valid JSON.", 'error');
-      return;
-    }
-    if (parsed && parsed.lockedInRoomBackup) {
-      var backup = readBackup(parsed);
-      if (!backup) {
-        setStatus(importStatus, "That backup looks damaged, so nothing was changed.", 'error');
-        return;
-      }
-      restoreBackup(backup, importStatus);
-      return;
-    }
-    if (!Array.isArray(parsed)) {
-      setStatus(importStatus, 'Expected a list of reminders.', 'error');
-      return;
-    }
-    var added = 0;
-    parsed.forEach(function (item, i) {
-      if (!item || typeof item.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time)) return;
-      var label = typeof item.label === 'string' ? cleanLabel(item.label) : '';
-      if (!label) return;
-      reminders.push({
-        id: 'r' + Date.now() + Math.random() + '-' + i,
-        time: item.time,
-        skipDate: skipDateFor(item.time),
-        label: label,
-        repeat: !!item.repeat,
-        lastFiredKey: null,
-        completed: false,
-        completedDateKey: null
-      });
-      added++;
-    });
-    if (added === 0) {
-      setStatus(importStatus, 'No valid reminders found in that file.', 'error');
-      return;
-    }
-    saveReminders();
-    render();
-    importInput.value = '';
-    setStatus(importStatus, 'Imported ' + added + ' reminder' + (added === 1 ? '' : 's') + '.', 'success');
   });
 })();
 </script>
