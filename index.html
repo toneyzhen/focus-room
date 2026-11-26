@@ -277,6 +277,18 @@
   }
   .link-btn:hover{ color:var(--amber-soft); }
 
+  /* A note lying on the desk, right of the stats: the top 10 of Filtered's ranking of 100 productivity tips, cited in HBR (2018). Its width stops short of the stats bar (half of it is about 207px). */
+  .tips-note{
+    position:fixed; z-index:1; right:3vw; bottom:2.5vh;
+    width:min(440px, 47vw - 227px); padding:12px 16px 14px; border-radius:3px;
+    background:#cdb991; color:#2e2112; box-shadow:0 10px 24px rgba(0,0,0,0.45);
+    transform:rotate(-1.2deg);
+  }
+  .tips-note h2{ margin:0 0 6px; font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:15px; font-weight:500; }
+  .tips-note ol{ margin:0; padding-left:20px; columns:2; column-gap:22px; font-size:13px; line-height:1.45; }
+  /* Smaller windows have no free desk for it. */
+  @media (max-width:1199px), (max-height:620px){ .tips-note{ display:none; } }
+
   .todo-card{
     width:min(92vw,480px); padding:16px 22px; border-radius:16px;
     display:flex; flex-direction:column; gap:8px;
@@ -1236,6 +1248,22 @@
     </div>
   </div>
 </div>
+
+<aside class="tips-note" aria-labelledby="tipsTitle">
+  <h2 id="tipsTitle">Top 10 productivity methods</h2>
+  <ol>
+    <li>Time-boxing</li>
+    <li>Prioritize</li>
+    <li>Say no</li>
+    <li>Move</li>
+    <li>Control your devices</li>
+    <li>Take short breaks</li>
+    <li>To-do lists</li>
+    <li>Eat well</li>
+    <li>2-minute rule</li>
+    <li>Control social media</li>
+  </ol>
+</aside>
 
 <div class="bell">
   <aside class="drawer" id="drawer" aria-label="Reminders" hidden>
