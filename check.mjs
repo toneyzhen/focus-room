@@ -142,6 +142,11 @@ assert.equal(evening.parseDuration('25'), 1500);
 assert.equal(evening.parseDuration('1:30'), 90);
 assert.equal(evening.parseDuration('0:01'), 1);
 assert.equal(evening.parseDuration(' 1.5 '), 90);
-for (const bad of ['', 'abc', '1:2:3', 'a:b']) assert.equal(evening.parseDuration(bad), null, `"${bad}" should be refused`);
+assert.equal(evening.parseDuration('90s'), 90, 'seconds on their own');
+assert.equal(evening.parseDuration('45 sec'), 45);
+assert.equal(evening.parseDuration('1m 30s'), 90);
+assert.equal(evening.parseDuration('2 min'), 120);
+assert.equal(evening.parseDuration('1M30S'), 90, 'any case');
+for (const bad of ['', 'abc', '1:2:3', 'a:b', '25x', '5 hours', 's', 'm']) assert.equal(evening.parseDuration(bad), null, `"${bad}" should be refused`);
 
 console.log(`ok: ${ids.length} ids, ${new Set(used).size} looked up, rules pass`);

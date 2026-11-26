@@ -4,7 +4,7 @@ A focus room with reminders: the Lamplight Study timer and room scene, plus Remi
 
 Open `index.html` in a browser. There's nothing to install. Your data stays in that browser's local storage.
 
-Each browser keeps its own copy, and so does each address you open the page from, so `localhost:8123` and a double-clicked `index.html` are two separate rooms. Stick to one. To back up or move everything, use "Back up everything" in the drawer, then Import in the other room. Importing a full backup replaces what's there.
+Each browser keeps its own copy, and so does each address you open the page from, so `localhost:8123` and a double-clicked `index.html` are two separate rooms. Stick to one. To back up or move everything, use "Back up room" in the top-right corner, then "Restore from a backup" in the other room. Restoring replaces what's there.
 
 To bring reminders over from Reminder Bell, use Export there and Import here.
 

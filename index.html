@@ -16,11 +16,11 @@
     --wall-1:#241c30;
     --wall-2:#150f1e;
     --glass-border:rgba(245,234,212,0.14);
-    /* Sizes the desk layout is built from: the desk's height, the timer ring, the monitor's stand, the keyboard and the mouse's space on the desk mat. */
+    /* Sizes the room is built from: the desk's height, the side columns either side of the monitor, the monitor's stand, the keyboard and the mouse's space on the desk mat. */
     --desk:26vh;
+    --side:min(300px,22vw);
     /* Papers and props sit a little in the room's shadow, so the timer on the monitor is the brightest thing in view. */
     --in-shadow:brightness(0.8);
-    --ring:min(31vh,270px);
     --stand:3.2vh;
     --kb:min(30vw,340px);
     --pad:min(12vw,140px);
@@ -126,11 +126,20 @@
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:clamp(14px,2.2vh,26px); width:100%;
   }
+  .stage{ display:flex; justify-content:center; width:100%; }
+  /* Low-key, so it doesn't add clutter: an outline chip in the corner. */
+  .room-backup{
+    display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; cursor:pointer;
+    background:none; border:1px solid rgba(245,234,212,0.18); color:var(--cream-dim); font-size:12px;
+  }
+  .room-backup svg{ width:13px; height:13px; }
+  .room-backup:hover{ border-color:var(--amber); color:var(--amber-soft); }
 
-  /* A 16:10 computer monitor in the middle of the room: the timer is the open app, and the clock sits in the taskbar's corner. */
+  /* A 16:10 computer monitor in the middle of the room: the timer is the open app, and the clock sits in the taskbar's corner.
+     It's a size container, so the ring inside scales with whatever size the monitor gets: its height less the buttons, taskbar and padding (96px), and no wider than 40% of it. */
   .monitor{
-    display:flex; flex-direction:column;
-    width:min(100%, var(--ring)*2.6); aspect-ratio:16/10;
+    position:relative; display:flex; flex-direction:column; container-type:size;
+    width:min(100%, 560px); aspect-ratio:16/10; --ring:min(100cqh - 96px, 40cqw);
     background:radial-gradient(ellipse at 50% 40%, #1d1726 0%, #0d0a12 75%);
     border:10px solid #17131c; border-radius:14px;
     box-shadow:0 0 0 1px rgba(245,234,212,0.06), 0 30px 70px rgba(0,0,0,0.55), inset 0 0 40px rgba(240,169,78,0.05);
@@ -145,9 +154,23 @@
     display:flex; justify-content:flex-end; padding:3px 12px; border-radius:0 0 4px 4px;
     background:rgba(245,234,212,0.04); border-top:1px solid rgba(245,234,212,0.07);
   }
-  /* Standing on the desk, whose top edge is --desk up from the bottom. Smaller windows keep everything in one scrolling column instead. */
+  /* The room on a grid: a side column each side of the monitor, the wall above the desk, and the desk itself (--desk tall, matching the room's desk).
+     Left column: the reminder board on the wall, the diary on the desk. Middle: the priorities note, then the monitor, which takes the space left and stands on the desk.
+     Right column: clear, for the lamp and notifications. Nothing is placed by hand, so nothing can overlap at any size.
+     Smaller windows keep everything in one scrolling column instead. */
   @media (min-width:1040px) and (min-height:500px){
-    .monitor{ position:fixed; z-index:1; left:50%; bottom:calc(var(--desk) + var(--stand)); transform:translateX(-50%); }
+    /* Each prefixed with .ui so it wins over the single-column rules for these parts further down. */
+    .ui{
+      display:grid; grid-template-columns:var(--side) minmax(0,1fr) var(--side); grid-template-rows:auto minmax(0,1fr) var(--desk);
+      align-items:stretch; column-gap:24px; padding-bottom:0; overflow:hidden;
+    }
+    .ui .topbar, .ui .hero{ display:contents; }
+    .ui .reminder-bell{ grid-column:1; grid-row:1 / 3; align-self:start; width:auto; max-height:100%; overflow-y:auto; }
+    .ui .priorities{ grid-column:2; grid-row:1; justify-self:center; margin-bottom:12px; } /* no row gap, so the monitor's stand reaches the desk */
+    .ui .room-backup{ grid-column:3; grid-row:1; justify-self:end; align-self:start; }
+    .ui .stage{ grid-column:2; grid-row:2; min-height:0; container-type:size; align-items:flex-end; padding-bottom:var(--stand); }
+    .ui .monitor{ width:min(100cqw, 100cqh*1.6, 720px); } /* as big as the stage allows, keeping 16:10 */
+    .ui .diary{ grid-column:1; grid-row:3; align-self:center; justify-self:start; }
     .monitor::after{ /* the neck */
       content:''; position:absolute; left:50%; top:calc(100% + 10px); width:60px; height:var(--stand); transform:translateX(-50%);
       background:linear-gradient(90deg, #141018, #221c28, #141018);
@@ -284,16 +307,11 @@
   .priority-start:focus-visible, .priority-done:focus-visible{ outline-color:#2e2112; }
   .priority-list li.done .priority-text{ text-decoration:line-through; color:rgba(46,33,18,0.5); }
 
-  /* The priorities note sits high on the wall, level with the other papers, and only comes down toward the monitor on short windows: it stays 120px above the monitor's top
-     (the desk's top edge, the stand, then the monitor: 1.625 rings tall, frame included), which leaves about a 20px gap below the note.
-     The shortest windows can't spare that, so there it rests a few pixels onto the monitor's frame, like a note stuck to it.
-     The notebook sits on the desk left of the keyboard. */
-  @media (min-width:1040px) and (min-height:500px){
-    .priorities{
-      position:fixed; z-index:1; left:50%; transform:translateX(-50%) rotate(-1.5deg);
-      top:max(12px, min(6vh, 100vh - var(--desk) - var(--stand) - var(--ring)*1.625 - 120px));
-    }
-    .diary{ position:fixed; z-index:1; left:6vw; bottom:calc(var(--desk)*0.12); } /* on the desk mat, left of the keyboard */
+  /* Shorter type on short windows, so the note leaves the monitor more room. */
+  @media (max-height:679px){
+    .priorities{ padding:5px 10px 7px; }
+    .priorities-title{ font-size:13px; }
+    .priority-list input{ font-size:12.5px; line-height:1.45; }
   }
 
 
@@ -316,10 +334,6 @@
   .reminder-toggle:hover .reminder-chevron{ color:var(--amber-soft); }
   .nudge-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid var(--glass-border); }
   .nudge-row[hidden]{ display:none; }
-  /* Top left at the page margin, out of flow so it doesn't push the monitor down. Narrow enough to stop 16px short of the monitor (1.3 rings plus a 10px frame either side of centre). Smaller windows keep it in the column above the monitor. */
-  @media (min-width:1040px) and (min-height:500px){
-    .reminder-bell{ position:absolute; top:0; left:0; width:min(300px, 50vw - var(--ring)*1.3 - 26px - clamp(16px,3vw,40px)); }
-  }
   /* Scrolls inside the card, so a long list can't run down over the timer. */
   .overdue-list{
     display:flex; flex-direction:column; gap:14px; padding:12px 0 14px;
@@ -948,12 +962,15 @@
     .reminder-row > .reminder-main{ flex:1 0 100%; order:1; }
   }
 
+  /* A big version of the chalkboard on the wall: slate in a wooden frame. Its own paper, surface and line colours carry the slate into every panel inside. */
   .drawer{
+    --paper:#1f2723; --surface:#27312c; --line:#3b4740;
     position:fixed; top:0; left:0; bottom:0; z-index:3;
     width:min(100vw,460px); overflow-y:auto; padding:20px;
     display:flex; flex-direction:column; gap:16px;
-    background:var(--paper); border-right:1px solid var(--line);
-    box-shadow:20px 0 50px rgba(0,0,0,0.45);
+    background:radial-gradient(ellipse at 30% 12%, rgba(255,255,255,0.05), transparent 55%), var(--paper);
+    border-right:10px solid #4a3020;
+    box-shadow:20px 0 50px rgba(0,0,0,0.45), inset 0 0 30px rgba(0,0,0,0.4);
   }
   .drawer[hidden]{ display:none; }
   .drawer-header{ display:flex; align-items:center; gap:6px; }
@@ -1067,6 +1084,10 @@
       </div>
       <div class="overdue-list" id="overdueList"></div>
     </div>
+    <button class="room-backup" id="roomBackupBtn" type="button" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      Back up room
+    </button>
   </div>
 
   <div class="hero">
@@ -1093,6 +1114,7 @@
         </li>
       </ol>
     </div>
+    <div class="stage">
     <div class="monitor">
       <div class="monitor-app">
         <div class="ring-wrap">
@@ -1101,8 +1123,8 @@
             <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="92"></circle>
           </svg>
           <div class="ring-center">
-            <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time">25:00</div>
-            <input class="digits-edit" id="digitsEdit" type="text" inputmode="numeric" aria-label="Session length in minutes and seconds">
+            <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time: 25 (minutes), 25:30, 90s or 1m 30s">25:00</div>
+            <input class="digits-edit" id="digitsEdit" type="text" aria-label="Session length: minutes, minutes:seconds, or seconds like 90s">
             <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
           </div>
         </div>
@@ -1117,6 +1139,7 @@
           <span class="date" id="clockDate">—</span>
         </div>
       </div>
+    </div>
     </div>
     <button class="diary" id="diaryBtn" type="button" aria-haspopup="dialog" aria-label="Open the brain dump diary">Brain dump</button>
     <dialog class="diary-dialog" id="diary" aria-label="Brain dump">
@@ -1319,6 +1342,25 @@
   </div>
 </dialog>
 
+<dialog class="settings-dialog" id="roomBackupDialog" aria-labelledby="roomBackupTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="roomBackupTitle">Back up your room</h2>
+      <button class="modal-close" id="roomBackupClose" type="button" aria-label="Close">×</button>
+    </div>
+    <p class="panel-hint">Everything here lives only in this browser: reminders, priorities, the brain dump and your timer settings. Download a copy now and then and keep it somewhere safe.</p>
+    <p class="panel-hint" id="roomBackupLast"></p>
+    <div class="backup-row">
+      <button type="button" class="ghost-btn" id="roomBackupDownload">Download backup</button>
+      <label class="file-btn">
+        Restore from a backup
+        <input type="file" id="roomBackupFile" accept="application/json,.json" hidden>
+      </label>
+    </div>
+    <span class="backup-status" id="roomBackupStatus"></span>
+  </div>
+</dialog>
+
 <dialog class="takeover" id="takeover" aria-labelledby="takeoverKind">
   <p class="takeover-kind" id="takeoverKind" tabindex="-1" autofocus>Starting now</p>
   <ul class="takeover-tasks" id="takeoverTasks"></ul>
@@ -1363,11 +1405,13 @@
   }
 
   /* ---------- settings (focus / break lengths, in seconds) ---------- */
-  var DEFAULT_SETTINGS = { focus:1500, "break":300 };
+  var DEFAULT_SETTINGS = { v:2, focus:1500, "break":300 };
   var settings = (function(){
     var stored = loadJSON(TIMER_SETTINGS_KEY, null);
     if(!stored || typeof stored.focus !== 'number') return Object.assign({}, DEFAULT_SETTINGS);
-    return { focus: stored.focus, "break": (typeof stored["break"] === 'number') ? stored["break"] : DEFAULT_SETTINGS["break"] };
+    // Time boxes used to change the default too; v2 puts it back to 25 minutes once, and from then on only editing the timer changes it.
+    var focus = stored.v === 2 ? stored.focus : DEFAULT_SETTINGS.focus;
+    return { v:2, focus:focus, "break": (typeof stored["break"] === 'number') ? stored["break"] : DEFAULT_SETTINGS["break"] };
   })();
   saveJSON(TIMER_SETTINGS_KEY, settings);
 
@@ -1403,10 +1447,19 @@
     mode:'focus',
     running:false,
     endAt:null,
-    remaining: settings.focus
+    remaining: settings.focus,
+    total: settings.focus // this session's length: the default, or a time box's
   };
 
   function durationFor(mode){ return settings[mode]; }
+  function sessionLength(){ return timer.total || durationFor(timer.mode); } // timers saved before time boxes have no total
+  function startFresh(mode, seconds){ // a new session or break, not yet running
+    clearInterval(tickHandle);
+    timer.running = false;
+    timer.endAt = null;
+    timer.mode = mode;
+    timer.total = timer.remaining = seconds;
+  }
   function formatMMSS(totalSec){
     var m = Math.floor(totalSec/60), s = totalSec%60;
     return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
@@ -1414,9 +1467,9 @@
 
   function render(){
     digitsEl.textContent = formatMMSS(timer.remaining);
-    var frac = 1 - (timer.remaining / durationFor(timer.mode));
+    var frac = 1 - (timer.remaining / sessionLength());
     ringProgress.style.strokeDashoffset = (CIRC * (1-frac)).toFixed(2);
-    startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === durationFor(timer.mode) ? MODE_START_LABELS[timer.mode] : 'Resume');
+    startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === sessionLength() ? MODE_START_LABELS[timer.mode] : 'Resume');
     skipBtn.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden'; // keeps its space, so the ring doesn't jump when a break starts
     renderTitle();
   }
@@ -1460,10 +1513,8 @@
     saveTimer();
     render();
   }
-  function reset(){
-    timer.running = false;
-    clearInterval(tickHandle);
-    timer.remaining = durationFor(timer.mode);
+  function reset(){ // back to the default length, even after a time box
+    startFresh(timer.mode, durationFor(timer.mode));
     saveTimer();
     render();
   }
@@ -1486,39 +1537,29 @@
   function countsAsSession(seconds){
     return seconds >= 600;
   }
-  function creditSession(){
-    if(!countsAsSession(settings.focus)) return;
+  function creditSession(seconds){
+    if(!countsAsSession(seconds)) return;
     stats = loadJSON(STATS_KEY, stats); // another tab may have added to it
     checkRollover();
     stats.sessions += 1;
-    stats.focusedSec += settings.focus;
+    stats.focusedSec += seconds;
     updateStreak();
     saveJSON(STATS_KEY, stats);
   }
   function completeSession(){
     var saved = loadJSON(TIMER_KEY, null);
     if(saved && saved.endAt !== timer.endAt){ applyTimer(saved); return; } // another tab already finished this one
-    clearInterval(tickHandle);
-    timer.running = false;
-    timer.endAt = null;
-    var enteringBreak = false;
-    if(timer.mode === 'focus'){
-      creditSession();
-      timer.mode = 'break';
-      enteringBreak = true;
-    } else {
-      timer.mode = 'focus';
-    }
-    timer.remaining = durationFor(timer.mode);
+    var enteringBreak = timer.mode === 'focus';
+    if(enteringBreak) creditSession(sessionLength());
+    var next = enteringBreak ? 'break' : 'focus';
+    startFresh(next, durationFor(next)); // a time box ends back on the default lengths
     document.dispatchEvent(new CustomEvent('sessionend', { detail: { enteringBreak: enteringBreak } })); // the bell script plays and shows it
     flashRing();
     if(enteringBreak){ start(); } else { saveTimer(); render(); }
   }
   function skipBreak(){
     if(timer.mode === 'focus') return;
-    timer.running = false; clearInterval(tickHandle);
-    timer.mode = 'focus';
-    timer.remaining = durationFor('focus');
+    startFresh('focus', durationFor('focus'));
     saveTimer();
     render();
   }
@@ -1535,8 +1576,9 @@
   /* ---------- inline timer-length editing (click the digits) ---------- */
   var EDIT_BOUNDS = { focus:[1, 180*60], "break":[1, 60*60] };
 
+  // A bare number is minutes ("25", "1.5"); otherwise mm:ss ("25:30") or with units ("90s", "1m 30s", "2 min", "45 sec").
   function parseDuration(raw){
-    raw = raw.trim();
+    raw = raw.trim().toLowerCase();
     if(!raw) return null;
     if(raw.indexOf(':') !== -1){
       var parts = raw.split(':');
@@ -1545,9 +1587,10 @@
       if(isNaN(mm) || isNaN(ss)) return null;
       return mm*60+ss;
     }
-    var mins = parseFloat(raw);
-    if(isNaN(mins)) return null;
-    return Math.round(mins*60);
+    var units = raw.match(/^(?:(\d+(?:\.\d+)?)\s*m(?:in(?:ute)?s?)?)?\s*(?:(\d+)\s*s(?:ec(?:ond)?s?)?)?$/);
+    if(units && (units[1] || units[2])) return Math.round(parseFloat(units[1] || 0)*60) + parseInt(units[2] || 0, 10);
+    if(!/^\d+(\.\d+)?$/.test(raw)) return null;
+    return Math.round(parseFloat(raw)*60);
   }
   var resumeAfterEdit = false;
   function startEditDigits(){
@@ -1567,14 +1610,15 @@
     else if(resumeAfterEdit) start(); // only looked, or cancelled, so the session carries on
     resumeAfterEdit = false;
   }
-  function setSessionLength(totalSec){
+  function setSessionLength(totalSec){ // the only place the default lengths change
     var b = EDIT_BOUNDS[timer.mode];
     totalSec = Math.min(b[1], Math.max(b[0], totalSec));
     settings[timer.mode] = totalSec;
     saveJSON(TIMER_SETTINGS_KEY, settings);
-    timer.remaining = totalSec;
+    timer.total = timer.remaining = totalSec;
     saveTimer();
     render();
+    document.dispatchEvent(new Event('focuslengthchange'));
   }
   digitsEl.addEventListener('click', startEditDigits);
   digitsEl.addEventListener('keydown', function(e){
@@ -1762,6 +1806,7 @@
     priorityRows.forEach(function(p, i){ p.text.value = open[i] || ''; p.box.value = ''; setDone(p, false); });
     savePriorities();
   })();
+  document.addEventListener('focuslengthchange', renderPriorities); // the empty boxes' hint shows the default
   priorityRows.forEach(function(p){
     p.text.addEventListener('input', function(){
       if(!p.text.value.trim()){ p.box.value = ''; setDone(p, false); } // a deleted task takes its time box and checkmark with it
@@ -1774,13 +1819,9 @@
     });
     // Time-boxing: a focus session as long as this task's box, started now, replacing any session or break already running.
     p.row.querySelector('.priority-start').addEventListener('click', function(){
-      var mins = parseInt(p.box.value, 10) > 0 ? parseInt(p.box.value, 10) : Math.round(settings.focus/60);
-      clearInterval(tickHandle);
-      timer.running = false;
-      timer.mode = 'focus';
-      setSessionLength(mins*60); // also becomes the focus length from now on, as typing it on the timer would
+      var mins = parseInt(p.box.value, 10) > 0 ? Math.min(parseInt(p.box.value, 10), 180) : Math.round(settings.focus/60);
+      startFresh('focus', mins*60); // this session only: the default focus length stays as it is
       start();
-      renderPriorities(); // the empty boxes' hint follows the new length
     });
   });
 
@@ -1789,7 +1830,7 @@
   if(savedTimer && MODE_LABELS[savedTimer.mode] && typeof savedTimer.remaining === 'number'){
     if(savedTimer.running && savedTimer.endAt <= Date.now()){
       // shortcut: a session that ended on an earlier day isn't credited, since stats only hold today; store history if that matters.
-      if(savedTimer.mode === 'focus' && todayStr(new Date(savedTimer.endAt)) === todayStr()) creditSession();
+      if(savedTimer.mode === 'focus' && todayStr(new Date(savedTimer.endAt)) === todayStr()) creditSession(savedTimer.total || settings.focus);
       saveTimer();
     } else {
       applyTimer(savedTimer);
@@ -3107,6 +3148,67 @@
     downloadJson(fullBackupOutput.value, 'locked-in-room-backup-' + todayKey() + '.json', fullBackupStatus);
   });
 
+  function restoreBackup(backup, statusEl) {
+    if (!window.confirm('Replace everything in the room with this backup?')) return;
+    try {
+      // Write first, and only then drop what the backup doesn't have, so a failed write never leaves you with neither copy.
+      Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
+      Object.keys(localStorage).filter(function (key) { return isBackupKey(key) && !(key in backup); })
+        .forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {
+      setStatus(statusEl, "This browser wouldn't save the backup, so only part of it may be restored.", 'error');
+      return;
+    }
+    location.reload();
+  }
+
+  // The same full backup from a button in the room, so it isn't buried in the reminders drawer.
+  var LAST_BACKUP_KEY = 'lockedInRoom.lastBackup.v1';
+  var roomBackupDialog = document.getElementById('roomBackupDialog');
+  var roomBackupStatus = document.getElementById('roomBackupStatus');
+  var roomBackupFile = document.getElementById('roomBackupFile');
+  function showLastBackup() {
+    var last = null;
+    try { last = localStorage.getItem(LAST_BACKUP_KEY); } catch (e) {}
+    document.getElementById('roomBackupLast').textContent = last ? 'Last downloaded on ' + last + '.' : "You haven't downloaded a backup yet.";
+  }
+  document.getElementById('roomBackupBtn').addEventListener('click', function () {
+    setStatus(roomBackupStatus, '');
+    showLastBackup();
+    roomBackupDialog.showModal();
+  });
+  document.getElementById('roomBackupDownload').addEventListener('click', function () {
+    downloadJson(fullBackupText(), 'locked-in-room-backup-' + todayKey() + '.json', roomBackupStatus);
+    if (roomBackupStatus.classList.contains('success')) {
+      try { localStorage.setItem(LAST_BACKUP_KEY, todayKey()); } catch (e) {}
+      showLastBackup();
+    }
+  });
+  roomBackupFile.addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    roomBackupFile.value = '';
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      var parsed = null;
+      try { parsed = JSON.parse(evt.target.result); } catch (err) {}
+      if (!parsed || !parsed.lockedInRoomBackup) {
+        setStatus(roomBackupStatus, "That isn't a room backup. A reminders export goes in the drawer's Import instead.", 'error');
+        return;
+      }
+      var backup = readBackup(parsed);
+      if (!backup) {
+        setStatus(roomBackupStatus, 'That backup looks damaged, so nothing was changed.', 'error');
+        return;
+      }
+      restoreBackup(backup, roomBackupStatus);
+    };
+    reader.onerror = function () { setStatus(roomBackupStatus, "Couldn't read that file.", 'error'); };
+    reader.readAsText(file);
+  });
+  document.getElementById('roomBackupClose').addEventListener('click', function () { roomBackupDialog.close(); });
+  roomBackupDialog.addEventListener('click', function (e) { if (e.target === roomBackupDialog) roomBackupDialog.close(); }); // a click on the dimmed backdrop lands on the dialog itself
+
   copyBtn.addEventListener('click', function () {
     refreshExportOutput();
     var data = exportOutput.value;
@@ -3159,17 +3261,7 @@
         setStatus(importStatus, "That backup looks damaged, so nothing was changed.", 'error');
         return;
       }
-      if (!window.confirm('Replace everything on this page with this backup?')) return;
-      try {
-        // Write first, and only then drop what the backup doesn't have, so a failed write never leaves you with neither copy.
-        Object.keys(backup).forEach(function (key) { localStorage.setItem(key, backup[key]); });
-        Object.keys(localStorage).filter(function (key) { return isBackupKey(key) && !(key in backup); })
-          .forEach(function (key) { localStorage.removeItem(key); });
-      } catch (e) {
-        setStatus(importStatus, "This browser wouldn't save the backup, so only part of it may be restored.", 'error');
-        return;
-      }
-      location.reload();
+      restoreBackup(backup, importStatus);
       return;
     }
     if (!Array.isArray(parsed)) {
