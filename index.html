@@ -474,7 +474,7 @@
 
   .settings-dialog::backdrop { background: rgba(30, 22, 10, 0.45); }
 
-  /* Covers the room, timer included, so a due reminder or timer ring can't be worked around. */
+  /* Covers the room, timer included, so no notification can be worked around: it stays until you click it away. */
   .takeover {
     --note-color: var(--brass);
     width: min(560px, calc(100% - 40px));
@@ -489,6 +489,8 @@
   }
 
   .takeover[data-kind="timer"] { --note-color: var(--teal); }
+  .takeover[data-kind="session"] { --note-color: var(--focus); }
+  .takeover[data-kind="warning"] { --note-color: var(--red); }
 
   .takeover::backdrop { background: rgba(12, 8, 4, 0.88); }
 
@@ -984,35 +986,8 @@
   }
   .icon-btn:hover{ color:var(--brass); border-color:var(--brass); }
 
-  .toasts{
-    /* Top right, clear of the monitor and the drawer. They cover the wall note only while they're up. */
-    position:fixed; top:16px; right:16px; z-index:60;
-    width:min(100vw - 32px, 340px); max-height:calc(100vh - 32px); overflow-y:auto; display:flex; flex-direction:column; gap:8px;
-  }
-  /* Catches the eye on a side monitor, where text is easy to miss. Dark between bursts, so each one stands out. Three pulses a little over a second each, and the stronger burst under two a second, both under the 3 flashes a second accessibility guidelines warn about. */
-  .edge-glow{
-    --note-color:var(--focus);
-    position:fixed; inset:0; z-index:59; pointer-events:none;
-    box-shadow:inset 0 0 110px 34px var(--note-color);
-    opacity:0;
-  }
-  .edge-glow.pulsing{ animation:edgePulse 1.33s ease-in-out 3; }
-  /* A note left up a while gets a different signal, since the same burst on repeat stops being noticed. */
-  .edge-glow.pulsing.strong{ animation:edgePulse 0.6s ease-in-out 6; box-shadow:inset 0 0 170px 64px var(--note-color); }
-  @keyframes edgePulse{ 0%,100%{ opacity:0; } 50%{ opacity:1; } }
-  .toast{
-    --note-color:var(--brass);
-    display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
-    background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--note-color); border-radius:10px;
-    box-shadow:0 12px 32px rgba(0,0,0,0.5);
-  }
-  .toast[data-kind="timer"]{ --note-color:var(--teal); }
-  .toast[data-kind="session"]{ --note-color:var(--focus); }
-  .toast[data-kind="warning"]{ --note-color:var(--red); }
-  .toast-icon{ flex-shrink:0; width:18px; height:18px; margin-top:1px; color:var(--note-color); }
-  .toast-body{ flex:1; min-width:0; }
-  .toast-kind{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.09em; color:var(--note-color); }
-  .toast-text{ white-space:pre-wrap; overflow-wrap:break-word; }
+  /* Notes are only the takeover's list now: every notification fills the screen until you click it away. */
+  .toasts{ display:none; }
 </style>
 </head>
 <body style="margin:0;">
@@ -1311,13 +1286,7 @@
       <h2 id="settingsTitle">Notifications</h2>
       <button class="modal-close" id="settingsCloseBtn" type="button" aria-label="Close">×</button>
     </div>
-    <p class="panel-hint">The room is silent: reminders and timers take over the screen instead of making a sound.</p>
-    <div class="field-row">
-      <label class="checkbox">
-        <input type="checkbox" id="showNotesToggle">
-        Show on-screen notifications
-      </label>
-    </div>
+    <p class="panel-hint">The room is silent. Reminders, the repeating timer and the focus timer each fill the screen until you click them away.</p>
     <div class="field-row">
       <button class="link-btn" id="testNotesBtn" type="button">Test notifications</button>
     </div>
@@ -1349,7 +1318,6 @@
   <button type="button" class="btn btn-primary" id="takeoverOkBtn">On it</button>
 </dialog>
 
-  <div class="edge-glow" id="edgeGlow" aria-hidden="true"></div>
   <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </div>
 
@@ -1844,7 +1812,7 @@
   // page, saves its stale list to the old key every second and would undo checkmarks.
   var STORAGE_KEY = 'lockedInRoom.reminders.v1';
   var OLD_STORAGE_KEY = 'reminderBell.reminders.v1';
-  var SETTINGS_KEY = 'reminderBell.settings.v1';
+  var SETTINGS_KEY = 'reminderBell.settings.v1'; // nothing is saved here any more, but older backups carry it
   var listEl = document.getElementById('reminderList');
   var summaryBar = document.getElementById('summaryBar');
   var summaryUpcomingEl = document.getElementById('summaryUpcoming');
@@ -1853,10 +1821,8 @@
   var form = document.getElementById('addForm');
   var labelInput = document.getElementById('labelInput');
   var repeatInput = document.getElementById('repeatInput');
-  var showNotesToggle = document.getElementById('showNotesToggle');
 
   var reminders = loadReminders();
-  var settings = loadSettings();
   var pendingDeleteId = null;
   var pendingDeleteTimer = null;
   var editingLabelId = null;
@@ -1880,20 +1846,6 @@
     return !!editingLabelId || !!(active && active.classList && active.classList.contains('tp-select'));
   }
 
-  function loadSettings() {
-    try {
-      var raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        return { showNotes: parsed.showNotes !== false };
-      }
-    } catch (e) {}
-    return { showNotes: true };
-  }
-
-  function saveSettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
-  }
 
   function cancelPendingDelete() {
     pendingDeleteId = null;
@@ -2317,78 +2269,16 @@
     }
   }
 
-  // The room is silent: a page can't tell the computer is muted, so the takeover, notes and edge glow do the job sounds used to.
-  // These show every time unless switched off in the gear menu.
-  var NOTE_KINDS = {
-    reminder: { label: 'Starting now', ms: 0, icon: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>' },
-    timer: { label: 'Repeating timer', ms: 0, icon: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>' }, // nothing else shows it rang, so it stays
-    session: { label: 'Focus timer', ms: 0, icon: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>' },
-    warning: { label: 'Not saved', ms: 0, icon: '<path d="M12 3L2 21h20Z"/><path d="M12 10v5"/><path d="M12 18h.01"/>' }
-  };
-
-  // Follows whatever notes are up, however they got there or left: a new note pulses in its own color, then the most urgent one still up holds.
-  // Reminders and the repeating timer take over the room instead, which hides the edges anyway.
-  var GLOW_ORDER = ['session'];
-  var edgeGlowEl = document.getElementById('edgeGlow');
+  // The room is silent, and a note off to the side gets tuned out, so every notification fills the screen until you click it away.
+  // In the order the takeover lists them; the first one up sets its colour.
+  var NOTE_KINDS = { warning:'Not saved', reminder:'Starting now', timer:'Repeating timer', session:'Focus timer' };
+  var TAKEOVER_KINDS = Object.keys(NOTE_KINDS);
+  var takeoverEl = document.getElementById('takeover');
+  var takeoverTasksEl = document.getElementById('takeoverTasks');
 
   function noteIsUp(kind) {
     return !!document.querySelector('#toasts .toast[data-kind="' + kind + '"]');
   }
-
-  // A session note waits for you to act, so it pulses again every so often until closed, in case the first burst was missed.
-  var GLOW_REPEAT_MS = 20000;
-  var GLOW_STRONG_AFTER_MS = 3 * 60000;
-  var glowRepeatTimer = null;
-
-  function upLongest(kind) {
-    var shown = Array.prototype.map.call(document.querySelectorAll('#toasts .toast[data-kind="' + kind + '"]'), function (note) { return note.shownAt || Date.now(); });
-    return Date.now() - Math.min.apply(null, shown);
-  }
-
-  function pulseGlow(kind, strong) {
-    edgeGlowEl.dataset.kind = kind;
-    edgeGlowEl.classList.toggle('strong', !!strong);
-    edgeGlowEl.classList.remove('pulsing');
-    void edgeGlowEl.offsetWidth; // restarts the animation if it's already running
-    edgeGlowEl.classList.add('pulsing');
-  }
-
-  function settleGlow() {
-    edgeGlowEl.classList.remove('pulsing');
-    clearTimeout(glowRepeatTimer);
-    var kind = GLOW_ORDER.filter(noteIsUp)[0];
-    if (kind) edgeGlowEl.dataset.kind = kind;
-    else delete edgeGlowEl.dataset.kind;
-    if (kind === 'session') {
-      glowRepeatTimer = setTimeout(function () {
-        if (noteIsUp(kind)) pulseGlow(kind, upLongest(kind) >= GLOW_STRONG_AFTER_MS);
-      }, GLOW_REPEAT_MS);
-    }
-  }
-
-  new MutationObserver(function (changes) {
-    changes.forEach(function (change) {
-      Array.prototype.forEach.call(change.addedNodes, function (note) { note.shownAt = Date.now(); });
-    });
-    var added = GLOW_ORDER.filter(function (kind) {
-      return changes.some(function (change) {
-        return Array.prototype.some.call(change.addedNodes, function (note) { return note.dataset.kind === kind; });
-      });
-    })[0];
-    // Pulses even with reduced motion on: it's a notification the user chose, not decoration.
-    if (added) {
-      clearTimeout(glowRepeatTimer);
-      pulseGlow(added);
-    } else if (!edgeGlowEl.classList.contains('pulsing') || !noteIsUp(edgeGlowEl.dataset.kind)) {
-      settleGlow();
-    }
-  }).observe(document.getElementById('toasts'), { childList: true });
-  edgeGlowEl.addEventListener('animationend', settleGlow);
-
-  // A due reminder or timer ring fills the screen until you say you're on it, since a note off to the side gets tuned out.
-  var TAKEOVER_KINDS = ['reminder', 'timer'];
-  var takeoverEl = document.getElementById('takeover');
-  var takeoverTasksEl = document.getElementById('takeoverTasks');
 
   function clearTakeoverNotes() {
     TAKEOVER_KINDS.forEach(function (kind) { removeNotes('[data-kind="' + kind + '"]'); });
@@ -2401,7 +2291,7 @@
       return;
     }
     takeoverEl.dataset.kind = kinds[0];
-    document.getElementById('takeoverKind').textContent = kinds.map(function (kind) { return NOTE_KINDS[kind].label; }).join(' · ');
+    document.getElementById('takeoverKind').textContent = kinds.map(function (kind) { return NOTE_KINDS[kind]; }).join(' · ');
     takeoverTasksEl.textContent = '';
     kinds.forEach(function (kind) {
       document.querySelectorAll('#toasts .toast[data-kind="' + kind + '"] .toast-text').forEach(function (task) {
@@ -2414,8 +2304,8 @@
   }
 
   new MutationObserver(syncTakeover).observe(document.getElementById('toasts'), { childList: true });
-  // Clearing the notes closes it. Esc closes it too, and then the notes go the same way.
-  takeoverEl.addEventListener('close', clearTakeoverNotes);
+  // Clearing the notes closes it, for "On it" and Esc alike. Esc is caught as it's pressed: the dialog's close event comes a frame later and would clear a note that arrived in between.
+  takeoverEl.addEventListener('cancel', function (e) { e.preventDefault(); clearTakeoverNotes(); });
   document.getElementById('takeoverOkBtn').addEventListener('click', clearTakeoverNotes);
 
   function removeNotes(selector) {
@@ -2430,49 +2320,18 @@
     removeNotes('[data-kind="session"]');
     showNote('session', e.detail.enteringBreak ? 'Focus session done. Break time: get up and move.' : 'Break over. Ready for the next session.');
   });
-  // Any of these moves the timer on, so a note about how the last session ended no longer applies.
-  ['startBtn', 'resetBtn', 'skipBtn'].forEach(function (id) {
-    document.getElementById(id).addEventListener('click', function () { removeNotes('[data-kind="session"]'); });
-  });
 
+  // A note is just the text the takeover lists, kept in the hidden #toasts list.
   function showNote(kind, text, id) {
-    if (!settings.showNotes && kind !== 'warning') return; // a failed save puts data at risk, so it always shows
-    var type = NOTE_KINDS[kind];
     var note = document.createElement('div');
     note.className = 'toast';
     note.dataset.kind = kind;
     if (id) note.dataset.id = id;
-    var icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    icon.setAttribute('class', 'toast-icon');
-    icon.setAttribute('viewBox', '0 0 24 24');
-    icon.setAttribute('fill', 'none');
-    icon.setAttribute('stroke', 'currentColor');
-    icon.setAttribute('stroke-width', '2');
-    icon.setAttribute('stroke-linecap', 'round');
-    icon.setAttribute('stroke-linejoin', 'round');
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = type.icon;
-    var body = document.createElement('div');
-    body.className = 'toast-body';
-    var label = document.createElement('div');
-    label.className = 'toast-kind';
-    label.textContent = type.label;
     var msg = document.createElement('div');
     msg.className = 'toast-text';
     msg.textContent = text;
-    body.appendChild(label);
-    body.appendChild(msg);
-    var dismiss = document.createElement('button');
-    dismiss.type = 'button';
-    dismiss.className = 'modal-close';
-    dismiss.setAttribute('aria-label', 'Dismiss notification');
-    dismiss.textContent = '×';
-    dismiss.addEventListener('click', function () { note.remove(); });
-    note.appendChild(icon);
-    note.appendChild(body);
-    note.appendChild(dismiss);
+    note.appendChild(msg);
     document.getElementById('toasts').appendChild(note);
-    if (type.ms) setTimeout(function () { note.remove(); }, type.ms);
   }
 
   // Both scripts send this.
@@ -2592,10 +2451,6 @@
       fillNudgeForm();
       renderNudge();
     }
-    if (e.key === SETTINGS_KEY) {
-      settings = loadSettings();
-      fillSettingsForm();
-    }
     if (e.key !== STORAGE_KEY) return;
     var current = reminders;
     reminders = loadReminders().map(function (fresh) {
@@ -2689,16 +2544,6 @@
     item.appendChild(text);
     overdueListEl.appendChild(item);
   }
-
-  function fillSettingsForm() {
-    showNotesToggle.checked = settings.showNotes;
-  }
-  fillSettingsForm();
-
-  showNotesToggle.addEventListener('change', function () {
-    settings.showNotes = showNotesToggle.checked;
-    saveSettings();
-  });
 
   document.getElementById('testNotesBtn').addEventListener('click', function () {
     showNote('reminder', 'Your task appears here');
