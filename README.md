@@ -1,6 +1,6 @@
-# locked-in-room
+# Focus Room
 
-A focus room with reminders: the Lamplight Study timer and room scene, plus Reminder Bell in a side drawer.
+A quiet desk to work at: a focus timer on the monitor, your top three priorities, a brain dump diary, and reminders on the chalkboard. Formerly Locked In Room.
 
 Open `index.html` in a browser. There's nothing to install. Your data stays in that browser's local storage.
 

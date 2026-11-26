@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Locked In Room</title>
+<title>Focus Room</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,400..600&family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -1347,7 +1347,7 @@
     renderTitle();
   }
   function renderTitle(){
-    var base = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Locked In Room';
+    var base = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Focus Room';
     document.title = (overdueCount ? '('+overdueCount+') ' : '') + base;
   }
   // The reminder script sends this; the two scripts share nothing else.
@@ -2753,7 +2753,7 @@
     showLastBackup();
   });
   document.getElementById('roomBackupDownload').addEventListener('click', function () {
-    downloadJson(fullBackupText(), 'locked-in-room-backup-' + todayKey() + '.json', roomBackupStatus);
+    downloadJson(fullBackupText(), 'focus-room-backup-' + todayKey() + '.json', roomBackupStatus);
     if (roomBackupStatus.classList.contains('success')) {
       try { localStorage.setItem(LAST_BACKUP_KEY, todayKey()); } catch (e) {}
       showLastBackup();
