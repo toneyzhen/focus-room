@@ -15,8 +15,15 @@
     --amber-soft:#ffd9a0;
     --wall-1:#241c30;
     --wall-2:#150f1e;
-    --glass-bg:rgba(32,25,42,0.52);
     --glass-border:rgba(245,234,212,0.14);
+    /* Sizes the desk layout is built from: the desk's height, the timer ring, the monitor's stand, the keyboard and the mouse's space on the desk mat. */
+    --desk:26vh;
+    /* Papers and props sit a little in the room's shadow, so the timer on the monitor is the brightest thing in view. */
+    --in-shadow:brightness(0.8);
+    --ring:min(31vh,270px);
+    --stand:3.2vh;
+    --kb:min(30vw,340px);
+    --pad:min(12vw,140px);
   }
 
   *{box-sizing:border-box;}
@@ -49,83 +56,8 @@
     pointer-events:none;
   }
 
-  .window{
-    position:absolute; top:6%; right:7%; width:38%; min-width:320px; max-width:560px; height:56%;
-    border-radius:6px;
-    box-shadow:
-      0 0 0 14px #3a2c22,
-      0 0 0 18px #241a14,
-      0 30px 70px rgba(0,0,0,0.55);
-    overflow:hidden;
-  }
-  .sky{
-    position:absolute; inset:0;
-    background:linear-gradient(180deg, #171433 0%, #2c2350 100%);
-    transition:background 2s ease, filter 1.5s ease;
-  }
-  .celestial{
-    position:absolute; width:15%; aspect-ratio:1; border-radius:50%;
-    top:14%; left:60%;
-    background:var(--amber-soft);
-    box-shadow:0 0 40px 10px rgba(255,217,160,0.55);
-    opacity:0.9;
-    transition:opacity 2s ease, background 2s ease, box-shadow 2s ease, left 3s ease, top 3s ease;
-  }
-  .stars{ position:absolute; inset:0; transition:opacity 2s ease; }
-  .stars span{
-    position:absolute; width:2px; height:2px; background:var(--cream);
-    border-radius:50%; opacity:0.8;
-  }
-  .clouds{ position:absolute; inset:0; pointer-events:none; }
-  .cloud{
-    position:absolute; height:5%; width:32%; border-radius:999px;
-    background:rgba(255,255,255,0.10);
-    filter:blur(2px);
-  }
-  .skyline{
-    position:absolute; left:0; right:0; bottom:0; height:22%;
-    background:#120e1c;
-    clip-path: polygon(0% 100%, 0% 40%, 6% 40%, 6% 20%, 12% 20%, 12% 55%, 20% 55%, 20% 10%, 27% 10%, 27% 45%, 35% 45%, 35% 30%, 43% 30%, 43% 60%, 52% 60%, 52% 15%, 60% 15%, 60% 50%, 68% 50%, 68% 25%, 76% 25%, 76% 62%, 85% 62%, 85% 35%, 93% 35%, 93% 55%, 100% 55%, 100% 100%);
-    opacity:0.9;
-  }
-  .windowpane{
-    position:absolute; inset:0;
-    background:
-      linear-gradient(rgba(245,234,212,0.10) 0 2px, transparent 2px) 0 50%/100% 100%,
-      linear-gradient(90deg, rgba(245,234,212,0.10) 0 2px, transparent 2px) 50% 0/100% 100%;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.35);
-  }
-  .curtain-rod{ position:absolute; top:0; left:0; right:0; height:5px; background:#2c2119; }
-  /* Tied back partway down. The stripes are the fabric's folds. */
-  .curtain{
-    position:absolute; top:0; bottom:0; width:17%;
-    background:repeating-linear-gradient(90deg, #6e3a2b 0 6px, #8a4c36 6px 12px, #5f3125 12px 16px);
-  }
-  .curtain-left{ left:0; clip-path:polygon(0 0, 100% 0, 100% 28%, 58% 62%, 70% 100%, 0 100%); }
-  .curtain-right{ right:0; clip-path:polygon(0 0, 100% 0, 100% 100%, 30% 100%, 42% 62%, 0 28%); }
-  .lights{ position:absolute; top:5px; left:0; right:0; height:9%; }
-  .lights svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-  .lights polyline{ fill:none; stroke:#2c2119; stroke-width:1.5; vector-effect:non-scaling-stroke; }
-  .bulb{
-    position:absolute; width:6px; height:6px; margin:-1px 0 0 -3px; border-radius:50%;
-    background:#ffd9a0; box-shadow:0 0 8px 3px rgba(255,190,110,0.65);
-    animation:twinkle 4s ease-in-out infinite;
-  }
-  .reduced-motion .bulb{ animation:none !important; }
-  @keyframes twinkle{ 0%,100%{ opacity:1; } 50%{ opacity:0.65; } }
-  .sill{
-    position:absolute; left:-14px; right:-14px; bottom:-10px; height:16px;
-    background:linear-gradient(180deg,#4a382a,#2c2119);
-    border-radius:2px;
-  }
-  .plant{ position:absolute; left:14px; bottom:6px; width:88px; transform-origin:bottom center; }
-  .plant .leaf{ transform-origin:bottom center; }
-  .reduced-motion .plant{ animation:none !important; }
-  .plant{ animation:sway 6s ease-in-out infinite; }
-  @keyframes sway{ 0%,100%{ transform:rotate(-2deg);} 50%{ transform:rotate(2deg);} }
-
   .desk{
-    position:absolute; left:0; right:0; bottom:0; height:23%;
+    position:absolute; left:0; right:0; bottom:0; height:var(--desk);
     background:linear-gradient(180deg,#3c2b21 0%, #24170f 100%);
     box-shadow:0 -2px 0 rgba(245,234,212,0.06), 0 -30px 60px rgba(0,0,0,0.45);
   }
@@ -134,7 +66,7 @@
     background-image:repeating-linear-gradient(90deg, rgba(0,0,0,0.25) 0 2px, transparent 2px 90px);
   }
 
-  .lamp{ position:absolute; left:6%; bottom:100%; width:170px; height:230px; }
+  .lamp{ position:absolute; right:5%; bottom:100%; width:170px; height:230px; transform:scaleX(-1); } /* flipped so the shade leans toward the monitor */
   .lamp-glow{
     position:absolute; left:-90px; top:-70px; width:420px; height:420px; border-radius:50%;
     background:radial-gradient(circle, rgba(240,169,78,0.35) 0%, rgba(240,169,78,0.14) 35%, transparent 70%);
@@ -144,10 +76,31 @@
   .reduced-motion .lamp-glow{ animation:none !important; }
   @keyframes flicker{ 0%,100%{opacity:1;} 50%{opacity:0.88;} 76%{opacity:0.96;} }
 
-  .cat{ position:absolute; left:24%; bottom:100%; transform:translateY(8px); width:96px; }
-  .cat-breath{ transform-box:fill-box; transform-origin:50% 100%; animation:breathe 4.5s ease-in-out infinite; }
-  .reduced-motion .cat-breath{ animation:none !important; }
-  @keyframes breathe{ 0%,100%{ transform:scaleY(1); } 50%{ transform:scaleY(1.045); } }
+  /* On the desk in front of the monitor, which is centred. */
+  /* A desk mat across most of the desk, under the keyboard, mouse and notebook, printed after Van Gogh's The Starry Night.
+     8 times as wide as it's tall, like its art, unless the desk is shorter. Dimmed a little to sit in the lamplight. */
+  .deskmat{
+    position:absolute; top:8%; left:2vw; right:2vw; height:min(84%, 12vw);
+    border-radius:10px; overflow:hidden; box-shadow:0 6px 14px rgba(0,0,0,0.45); filter:var(--in-shadow) brightness(0.85);
+  }
+  .deskmat svg{ display:block; width:100%; height:100%; }
+  .keyboard{ /* centred on the mat: its middle, less half the keyboard's height */
+    position:absolute; left:50%; top:calc(8% + min(84%, 12vw)/2 - var(--kb)/10.4); width:var(--kb); aspect-ratio:5.2; transform:translateX(-50%);
+    border-radius:6px; background:#17131c; box-shadow:0 6px 14px rgba(0,0,0,0.5);
+  }
+  .keyboard::before{ /* the keys: a 15 by 4 grid */
+    content:''; position:absolute; inset:5px; border-radius:3px;
+    background:
+      linear-gradient(90deg, #17131c 2px, transparent 2px) 0 0/calc(100%/15) 100%,
+      linear-gradient(#17131c 2px, transparent 2px) 0 0/100% 25%,
+      #2b2433;
+  }
+  .mouse{ /* on the mat right of the keyboard, level with it */
+    position:absolute; left:calc(50% + var(--kb)/2 + 16px + var(--pad)/2); top:calc(8% + min(84%, 12vw)/2);
+    width:calc(var(--pad)*0.26); aspect-ratio:0.62; transform:translate(-50%,-50%);
+    border-radius:50% 50% 46% 46%; background:#2b2433; box-shadow:inset 0 -3px 0 rgba(0,0,0,0.35), 0 4px 8px rgba(0,0,0,0.45);
+  }
+  @media (max-width:1039px), (max-height:499px){ .deskmat, .keyboard, .mouse{ display:none; } }
 
   canvas.dust{ position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; }
 
@@ -162,13 +115,6 @@
     display:flex; flex-direction:column; align-items:center;
     padding:clamp(16px,3vh,36px) clamp(16px,3vw,40px);
   }
-  .glass{
-    background:var(--glass-bg);
-    border:1px solid var(--glass-border);
-    backdrop-filter:blur(14px) saturate(1.1);
-    -webkit-backdrop-filter:blur(14px) saturate(1.1);
-    border-radius:18px;
-  }
 
   .topbar{
     width:100%; /* full width so the reminder card reaches the left side of the screen */
@@ -176,26 +122,46 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .clock-pill{
-    display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:2px 12px;
-    align-self:center; max-width:100%;
-    padding:10px 24px; border-radius:999px;
-  }
-  .clock-pill .time{
-    font-family:'IBM Plex Mono',ui-monospace,monospace;
-    font-size:clamp(30px,3.6vw,44px); font-weight:500;
-    font-variant-numeric:tabular-nums; letter-spacing:0.02em;
-  }
-  .clock-pill .date{
-    font-size:clamp(14px,1.3vw,16px); color:var(--cream-dim); letter-spacing:0.04em; text-transform:uppercase;
-  }
-
   .hero{
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:clamp(14px,2.2vh,26px); width:100%;
   }
 
-  .ring-wrap{ position:relative; width:min(38vh,320px); aspect-ratio:1; }
+  /* A 16:10 computer monitor in the middle of the room: the timer is the open app, and the clock sits in the taskbar's corner. */
+  .monitor{
+    display:flex; flex-direction:column;
+    width:min(100%, var(--ring)*2.6); aspect-ratio:16/10;
+    background:radial-gradient(ellipse at 50% 40%, #1d1726 0%, #0d0a12 75%);
+    border:10px solid #17131c; border-radius:14px;
+    box-shadow:0 0 0 1px rgba(245,234,212,0.06), 0 30px 70px rgba(0,0,0,0.55), inset 0 0 40px rgba(240,169,78,0.05);
+  }
+  .monitor-app{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:clamp(6px,1.2vh,12px); padding:clamp(6px,1.2vh,12px) 12px;
+  }
+  .monitor .btn{ padding:clamp(6px,1vh,10px) clamp(16px,2vh,24px); font-size:14px; }
+  .monitor .btn-primary{ min-width:128px; }
+  .taskbar{
+    display:flex; justify-content:flex-end; padding:3px 12px; border-radius:0 0 4px 4px;
+    background:rgba(245,234,212,0.04); border-top:1px solid rgba(245,234,212,0.07);
+  }
+  /* Standing on the desk, whose top edge is --desk up from the bottom. Smaller windows keep everything in one scrolling column instead. */
+  @media (min-width:1040px) and (min-height:500px){
+    .monitor{ position:fixed; z-index:1; left:50%; bottom:calc(var(--desk) + var(--stand)); transform:translateX(-50%); }
+    .monitor::after{ /* the neck */
+      content:''; position:absolute; left:50%; top:calc(100% + 10px); width:60px; height:var(--stand); transform:translateX(-50%);
+      background:linear-gradient(90deg, #141018, #221c28, #141018);
+    }
+    .monitor::before{ /* the foot */
+      content:''; position:absolute; left:50%; top:calc(100% + 6px + var(--stand)); width:170px; height:10px; transform:translateX(-50%);
+      border-radius:4px 4px 2px 2px; background:#1b1620; box-shadow:0 6px 12px rgba(0,0,0,0.5);
+    }
+  }
+  .clock-pill{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; }
+  .clock-pill .time{ font-size:clamp(12px,1.8vh,15px); font-weight:500; font-variant-numeric:tabular-nums; }
+  .clock-pill .date{ font-size:clamp(11px,1.5vh,13px); color:var(--cream-dim); }
+
+  .ring-wrap{ position:relative; width:var(--ring); aspect-ratio:1; }
   .ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
   .ring-track{ fill:none; stroke:rgba(245,234,212,0.10); stroke-width:5; }
   .ring-progress{ fill:none; stroke:var(--amber); stroke-width:5; stroke-linecap:round;
@@ -203,9 +169,10 @@
   .ring-center{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   }
+  .ring-center .link-btn{ position:absolute; bottom:24%; font-size:12px; } /* under the digits without moving them */
   .digits, .digits-edit{
     font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:500;
-    font-size:clamp(44px,6.4vh,64px); font-variant-numeric:tabular-nums; letter-spacing:0.01em;
+    font-size:calc(var(--ring)*0.24); /* scales with the ring, the biggest thing on the screen */ font-variant-numeric:tabular-nums; letter-spacing:0.01em;
     line-height:1;
   }
   .digits{
@@ -219,7 +186,6 @@
     padding-bottom:3px; -moz-appearance:textfield;
   }
 
-  .ring-actions{ display:flex; flex-direction:column; align-items:center; gap:6px; }
   .controls{ display:flex; align-items:center; gap:14px; }
   .btn{
     font-family:'Libre Franklin'; font-weight:600; font-size:15px; letter-spacing:0.01em;
@@ -240,77 +206,105 @@
   }
   .link-btn:hover{ color:var(--amber-soft); }
 
-  /* A note lying on the desk, right of the to-do card: the top 10 of Filtered's ranking of 100 productivity tips, cited in HBR (2018). Its width stops 16px short of the to-do card (240px either side of centre). */
-  .tips-note{
-    position:fixed; z-index:1; right:3vw; bottom:2.5vh;
-    width:min(440px, 47vw - 256px); padding:12px 16px 14px; border-radius:3px;
-    background:#cdb991; color:#2e2112; box-shadow:0 10px 24px rgba(0,0,0,0.45);
-    transform:rotate(-1.2deg);
-  }
-  .tips-note h2{ margin:0 0 6px; font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:15px; font-weight:500; }
-  .tips-note ol{ margin:0; padding-left:20px; columns:2; column-gap:22px; font-size:13px; line-height:1.45; }
-  /* Smaller type where the desk is cramped, such as a laptop at 150% display scaling (about 1067x560). Below that there's no free desk for it. */
-  @media (max-width:1199px), (max-height:679px){
-    .tips-note{ padding:8px 12px 10px; }
-    .tips-note h2{ font-size:13px; margin-bottom:3px; }
-    .tips-note ol{ padding-left:17px; column-gap:14px; font-size:11.5px; line-height:1.35; }
-  }
-  @media (max-width:1039px), (max-height:479px){ .tips-note{ display:none; } }
 
-  .todo-card{
-    width:min(92vw,480px); padding:16px 22px; border-radius:16px;
-    display:flex; flex-direction:column; gap:8px;
+  /* The brain dump: a closed leather diary on the desk, so what's written in it stays out of sight. Clicking it opens the book. */
+  .diary{
+    position:relative; width:min(200px, 14vw); min-width:140px; aspect-ratio:1.45; padding:0; cursor:pointer;
+    border:none; border-left:14px solid #3e2718; border-radius:4px 8px 8px 4px;
+    background:linear-gradient(135deg, #6a442c, #4e311f); color:#c9a46a;
+    font:italic 500 16px 'Fraunces',Georgia,serif; letter-spacing:0.02em;
+    box-shadow:3px 3px 0 -1px #d8ccb0, 0 10px 22px rgba(0,0,0,0.5); /* the page edges, then its shadow */
+    transform:rotate(-3deg); filter:var(--in-shadow); transition:transform 0.15s ease;
   }
-  .todo-form label{
-    display:block;
-    font-size:11px; text-transform:uppercase; letter-spacing:0.09em; color:var(--cream-dim);
-    font-weight:600; margin-bottom:3px;
+  .diary:hover{ transform:rotate(-3deg) translateY(-3px); }
+  .diary::before{ /* stitching down the spine */
+    content:''; position:absolute; left:-9px; top:4px; bottom:4px; border-left:2px dashed rgba(240,220,190,0.35);
   }
-  .todo-form input{
-    display:block; width:100%;
-    background:transparent; border:none; color:var(--cream);
-    font-family:'Libre Franklin'; font-size:16px;
-    padding:2px 0; border-bottom:1px solid transparent;
+  .diary::after{ /* the ribbon */
+    content:''; position:absolute; right:26px; bottom:-16px; width:9px; height:22px; background:#8d2b2b;
+    clip-path:polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
   }
-  .todo-form input::placeholder{ color:rgba(245,234,212,0.35); }
-  .todo-form input:focus{ outline:none; border-bottom-color:var(--amber); }
-  .todo-add-row{ display:flex; align-items:center; gap:10px; }
-  .todo-add-row input{ flex:1; min-width:0; }
-  .todo-add{
-    flex-shrink:0; padding:5px 14px; border-radius:999px; cursor:pointer;
-    background:transparent; border:1px solid var(--glass-border); color:var(--cream);
-    font-family:'Libre Franklin'; font-size:13px; font-weight:600;
-  }
-  .todo-add:hover{ border-color:var(--amber); color:var(--amber-soft); }
-  /* Scrolls inside the card, so a long list can't push the timer off the screen. */
-  .todo-list{
-    list-style:none; margin:0; padding:8px 0 0; max-height:min(24vh,200px); overflow-y:auto;
-    border-top:1px solid var(--glass-border); scrollbar-width:thin; scrollbar-color:rgba(245,234,212,0.3) transparent;
-  }
-  .todo-list:empty{ display:none; }
-  .todo-item{ display:flex; align-items:flex-start; gap:8px; }
-  .todo-item label{
-    flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;
-    padding:4px 0; font-size:15px; overflow-wrap:anywhere; cursor:pointer;
-  }
-  .todo-item input{ flex-shrink:0; width:16px; height:16px; margin:2px 0 0; accent-color:var(--amber); color-scheme:dark; }
-  .todo-item.done span{ color:var(--cream-dim); text-decoration:line-through; }
-  .todo-delete{
-    background:none; border:none; color:var(--cream-dim); cursor:pointer;
-    font-size:18px; line-height:1; padding:3px 8px;
-  }
-  .todo-delete:hover{ color:var(--amber-soft); }
-  .todo-clear{ align-self:flex-end; }
 
-  @media (max-width: 640px){
-    .window{ display:none; }
-    .cat{ display:none; }
+  /* The open diary: two lined pages either side of the spine, turned with Back and Next. */
+  .diary-dialog{ width:min(880px, 94vw); max-width:none; padding:0; border:none; background:none; color:#2e2112; }
+  .diary-dialog::backdrop{ background:rgba(12,8,4,0.72); }
+  .diary-book{
+    display:flex; height:min(540px, 76vh); padding:12px; border-radius:10px;
+    background:#5b3a26; box-shadow:0 30px 70px rgba(0,0,0,0.6);
   }
+  .diary-page{ position:relative; flex:1; min-width:0; display:flex; padding:22px 24px 30px; background:#ede3cc; }
+  .diary-page:first-child{ border-radius:4px 0 0 4px; box-shadow:inset -22px 0 24px -14px rgba(0,0,0,0.35); }
+  .diary-page:last-child{ border-radius:0 4px 4px 0; box-shadow:inset 22px 0 24px -14px rgba(0,0,0,0.35); }
+  .diary-page textarea{
+    flex:1; min-width:0; padding:0; resize:none; border:none; outline:none; color:inherit;
+    font:15px/26px 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;
+    background:repeating-linear-gradient(transparent 0 25px, rgba(70,90,130,0.28) 25px 26px) local;
+    scrollbar-width:thin; scrollbar-color:rgba(46,33,18,0.35) transparent;
+  }
+  .diary-page textarea::placeholder{ color:rgba(46,33,18,0.45); }
+  /* The inside front cover holds the methods list; writing starts on the page facing it. */
+  .diary-cover{ flex:1; }
+  .diary-cover h2{ margin:0 0 14px; font:italic 500 20px 'Fraunces',Georgia,serif; }
+  .diary-cover ol{ margin:0; padding-left:24px; font-size:15px; line-height:2; }
+  .diary-page:not(.cover) .diary-cover, .diary-page.cover textarea, .diary-page.cover .diary-num{ display:none; }
+  .diary-num{ position:absolute; left:0; right:0; bottom:8px; text-align:center; font:italic 12px 'Fraunces',Georgia,serif; color:rgba(46,33,18,0.55); }
+  .diary-nav{ display:flex; justify-content:space-between; gap:12px; margin-top:12px; }
+  .diary-nav button{
+    padding:7px 16px; border-radius:999px; cursor:pointer;
+    background:none; border:1px solid rgba(245,234,212,0.25); color:var(--cream); font-size:14px;
+  }
+  .diary-nav button:hover:not(:disabled){ border-color:var(--amber); color:var(--amber-soft); }
+  .diary-nav button:disabled{ opacity:0.35; cursor:default; }
+  @media (max-width:640px){
+    .diary-book{ flex-direction:column; height:auto; }
+    .diary-page{ min-height:38vh; }
+  }
+
+  /* The top three priorities: one yellow sticky note, a numbered line each, with dark ink like the other papers in the room. */
+  .priorities{
+    width:min(92vw,320px); padding:7px 12px 9px; border-radius:2px;
+    background:#e6cf6b; color:#2e2112; box-shadow:0 8px 18px rgba(0,0,0,0.45); transform:rotate(-1.5deg); filter:var(--in-shadow);
+  }
+  .priorities:focus-within{ box-shadow:0 0 0 2px #2e2112, 0 8px 18px rgba(0,0,0,0.45); }
+  .priorities-title{ font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:15px; line-height:1.2; margin-bottom:2px; }
+  .priority-list{ margin:0; padding:0; list-style:none; counter-reset:priority; }
+  .priority-list li{ counter-increment:priority; display:flex; align-items:center; gap:6px; }
+  .priority-list li::before{ content:counter(priority) '.'; width:14px; font-size:13px; font-weight:600; }
+  .priority-list input{
+    flex:1; min-width:0; padding:0; border:none; border-bottom:1px solid rgba(46,33,18,0.25); outline:none;
+    background:transparent; color:inherit; font:13px/1.55 'Libre Franklin',ui-sans-serif,system-ui,sans-serif;
+  }
+  .priority-list input:focus{ border-bottom-color:#2e2112; }
+  .priority-list input::placeholder{ color:rgba(46,33,18,0.45); }
+  .priority-list .priority-box{ flex:none; width:30px; text-align:right; -moz-appearance:textfield; }
+  .priority-box::-webkit-inner-spin-button, .priority-box::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  .priority-unit{ margin-left:-5px; font-size:12px; color:rgba(46,33,18,0.6); }
+  .priority-start, .priority-done{ padding:1px 3px; background:none; border:none; cursor:pointer; color:rgba(46,33,18,0.55); font-size:12px; line-height:1; }
+  .priority-start:hover, .priority-done:hover, .priority-done[aria-pressed="true"]{ color:#2e2112; }
+  .priority-start:focus-visible, .priority-done:focus-visible{ outline-color:#2e2112; }
+  .priority-list li.done .priority-text{ text-decoration:line-through; color:rgba(46,33,18,0.5); }
+
+  /* The priorities note sits high on the wall, level with the other papers, and only comes down toward the monitor on short windows: it stays 120px above the monitor's top
+     (the desk's top edge, the stand, then the monitor: 1.625 rings tall, frame included), which leaves about a 20px gap below the note.
+     The shortest windows can't spare that, so there it rests a few pixels onto the monitor's frame, like a note stuck to it.
+     The notebook sits on the desk left of the keyboard. */
+  @media (min-width:1040px) and (min-height:500px){
+    .priorities{
+      position:fixed; z-index:1; left:50%; transform:translateX(-50%) rotate(-1.5deg);
+      top:max(12px, min(6vh, 100vh - var(--desk) - var(--stand) - var(--ring)*1.625 - 120px));
+    }
+    .diary{ position:fixed; z-index:1; left:6vw; bottom:calc(var(--desk)*0.12); } /* on the desk mat, left of the keyboard */
+  }
+
 
   /* ---------- REMINDERS (from Reminder Bell, nested so its bare h2/label/input rules can't reach the room) ---------- */
-  /* Built like the to-do card, so the two read as a set. */
-  .reminder-bell{ width:min(100%,480px); align-self:center; padding:0 20px; border-radius:16px; }
-  .reminder-bell:hover{ border-color:rgba(245,234,212,0.3); }
+  /* A small chalkboard in a wooden frame on the wall, so it reads as part of the room rather than an app panel. */
+  .reminder-bell{
+    width:min(100%,480px); align-self:center; padding:0 18px; border-radius:5px;
+    border:6px solid #4a3020; background:radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.05), transparent 60%), #1f2723;
+    box-shadow:0 10px 24px rgba(0,0,0,0.45), inset 0 0 18px rgba(0,0,0,0.45);
+  }
+  .reminder-bell:hover{ border-color:#5c3c28; }
   .reminder-toggle{
     display:flex; align-items:center; gap:8px; width:100%;
     padding:13px 0; background:none; border:none; text-align:left; cursor:pointer;
@@ -322,13 +316,9 @@
   .reminder-toggle:hover .reminder-chevron{ color:var(--amber-soft); }
   .nudge-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 0; border-top:1px solid var(--glass-border); }
   .nudge-row[hidden]{ display:none; }
-  /* Out of flow beside the timer, so it doesn't push the centred hero down. Centred over the lamp's glow: the lamp's left edge plus 120px, less the page margin the top bar starts from. */
-  @media (min-width: 860px){
-    .reminder-bell{ position:absolute; top:100%; left:calc(6vw + 120px - clamp(16px,3vw,40px)); transform:translateX(-50%); margin-top:12px; width:min(300px,28vw); }
-  }
-  /* Level with the clock once there's room beside it. The width keeps it clear of the clock's left edge, even with the longest date. */
-  @media (min-width: 980px){
-    .reminder-bell{ top:0; margin-top:0; width:min(300px,50vw - 284px); }
+  /* Top left at the page margin, out of flow so it doesn't push the monitor down. Narrow enough to stop 16px short of the monitor (1.3 rings plus a 10px frame either side of centre). Smaller windows keep it in the column above the monitor. */
+  @media (min-width:1040px) and (min-height:500px){
+    .reminder-bell{ position:absolute; top:0; left:0; width:min(300px, 50vw - var(--ring)*1.3 - 26px - clamp(16px,3vw,40px)); }
   }
   /* Scrolls inside the card, so a long list can't run down over the timer. */
   .overdue-list{
@@ -977,17 +967,9 @@
   .icon-btn:hover{ color:var(--brass); border-color:var(--brass); }
 
   .toasts{
-    /* Just under the clock: the page's top margin, the clock's height (its text plus padding), then a gap. */
-    position:fixed; top:calc(clamp(16px,3vh,36px) + clamp(30px,3.6vw,44px)*1.3 + 22px + 10px); left:50%; transform:translateX(-50%); z-index:60;
-    width:min(92vw,360px); max-height:calc(100vh - 140px); overflow-y:auto; display:flex; flex-direction:column; gap:8px;
-  }
-  /* Wide windows: just right of the reminder list (its right edge is 6vw + 270px) and clear of the ring (at most 160px from centre), so a pile of notes can't cover the timer. Narrower windows have no room there. */
-  @media (min-width: 1700px){
-    .toasts{ width:min(360px, 44vw - 470px); left:calc(6vw + 286px + min(180px, 22vw - 235px)); }
-  }
-  /* Centred in the space beside an open drawer, so they don't cover its controls. On smaller windows the drawer leaves no room. */
-  @media (min-width: 860px){
-    .drawer:not([hidden]) ~ .toasts{ left:calc(50vw + 230px); }
+    /* Top right, clear of the monitor and the drawer. They cover the wall note only while they're up. */
+    position:fixed; top:16px; right:16px; z-index:60;
+    width:min(100vw - 32px, 340px); max-height:calc(100vh - 32px); overflow-y:auto; display:flex; flex-direction:column; gap:8px;
   }
   /* Catches the eye on a side monitor, where text is easy to miss. Dark between bursts, so each one stands out. Three pulses a little over a second each, and the stronger burst under two a second, both under the 3 flashes a second accessibility guidelines warn about. */
   .edge-glow{
@@ -996,9 +978,7 @@
     box-shadow:inset 0 0 110px 34px var(--note-color);
     opacity:0;
   }
-  .edge-glow[data-kind="hour"]{ --note-color:var(--ink-soft); }
   .edge-glow.pulsing{ animation:edgePulse 1.33s ease-in-out 3; }
-  .edge-glow[data-kind="hour"].pulsing{ animation-iteration-count:1; }
   /* A note left up a while gets a different signal, since the same burst on repeat stops being noticed. */
   .edge-glow.pulsing.strong{ animation:edgePulse 0.6s ease-in-out 6; box-shadow:inset 0 0 170px 64px var(--note-color); }
   @keyframes edgePulse{ 0%,100%{ opacity:0; } 50%{ opacity:1; } }
@@ -1010,7 +990,6 @@
   }
   .toast[data-kind="timer"]{ --note-color:var(--teal); }
   .toast[data-kind="session"]{ --note-color:var(--focus); }
-  .toast[data-kind="hour"]{ --note-color:var(--ink-soft); }
   .toast[data-kind="warning"]{ --note-color:var(--red); }
   .toast-icon{ flex-shrink:0; width:18px; height:18px; margin-top:1px; color:var(--note-color); }
   .toast-body{ flex:1; min-width:0; }
@@ -1021,32 +1000,6 @@
 <body style="margin:0;">
 
 <div class="room" aria-hidden="true">
-  <div class="window">
-    <div class="sky" id="sky">
-      <div class="stars" id="stars"></div>
-      <div class="celestial" id="celestial"></div>
-      <div class="clouds" id="clouds"></div>
-      <div class="skyline"></div>
-    </div>
-    <div class="windowpane"></div>
-    <div class="curtain curtain-left"></div>
-    <div class="curtain curtain-right"></div>
-    <div class="curtain-rod"></div>
-    <div class="lights" id="lights">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline id="lightsWire"/></svg>
-    </div>
-    <div class="sill">
-      <svg class="plant" viewBox="0 0 70 90">
-        <rect x="18" y="60" width="34" height="28" rx="3" fill="#4a382a"/>
-        <rect x="18" y="60" width="34" height="6" rx="2" fill="#5c4634"/>
-        <path class="leaf" d="M35 64 C18 50 10 28 22 6" stroke="#6f8c68" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-        <path class="leaf" d="M35 64 C42 42 58 30 64 14" stroke="#8aa07c" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-        <path class="leaf" d="M35 64 C33 40 40 22 37 2" stroke="#9bb28d" stroke-width="5.5" fill="none" stroke-linecap="round"/>
-        <path class="leaf" d="M35 64 C26 46 26 30 33 16" stroke="#7f9b78" stroke-width="5" fill="none" stroke-linecap="round"/>
-      </svg>
-    </div>
-  </div>
-
   <div class="desk">
     <div class="lamp">
       <div class="lamp-glow"></div>
@@ -1057,19 +1010,39 @@
         <ellipse cx="30" cy="230" rx="26" ry="6" fill="#1c140f"/>
       </svg>
     </div>
-    <svg class="cat" viewBox="0 0 100 58">
-      <ellipse cx="48" cy="55" rx="46" ry="3" fill="#1c140f" opacity="0.6"/>
-      <g class="cat-breath">
-        <ellipse cx="40" cy="36" rx="35" ry="20" fill="#b9773f"/>
-        <path d="M24 20 q3 7 1 13 M36 16 q3 7 1 14 M48 16 q3 7 1 14" fill="none" stroke="#8f5a2e" stroke-width="3" stroke-linecap="round"/>
-        <path d="M62 30 L63 13 L73 24 Z M76 24 L86 13 L87 30 Z" fill="#b9773f"/>
-        <path d="M65 26 L65 18 L70 24 Z M79 24 L84 18 L84 26 Z" fill="#e0a06f"/>
-        <circle cx="74" cy="37" r="15" fill="#c4834a"/>
-        <path d="M65 36 q3 3 6 0 M77 36 q3 3 6 0" fill="none" stroke="#3a2415" stroke-width="1.6" stroke-linecap="round"/>
-        <path d="M72.5 41 L75.5 41 L74 43 Z" fill="#7a3f2c"/>
-      </g>
-      <path d="M8 44 C2 56, 34 58, 58 53" fill="none" stroke="#8f5a2e" stroke-width="7" stroke-linecap="round"/>
-    </svg>
+    <div class="deskmat">
+      <!-- After Van Gogh's The Starry Night: a swirling sky, stars and a crescent moon, a village along the front and a cypress between the notebook and the keyboard, where it shows. -->
+      <svg viewBox="0 0 1200 150" preserveAspectRatio="xMidYMax slice">
+        <defs>
+          <radialGradient id="starGlow"><stop offset="0" stop-color="#f6e08a"/><stop offset="0.35" stop-color="#f2d36b" stop-opacity="0.7"/><stop offset="1" stop-color="#f2d36b" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect width="1200" height="150" fill="#1b2d5c"/>
+        <g fill="none" stroke-linecap="round">
+          <path d="M0 40 C150 10 300 70 450 40 S750 10 900 45 S1100 70 1200 35" stroke="#3d63a8" stroke-width="9" opacity="0.8"/>
+          <path d="M0 72 C120 52 260 96 420 72 S700 46 860 76 S1080 96 1200 70" stroke="#3d63a8" stroke-width="9" opacity="0.8"/>
+          <path d="M0 40 C150 10 300 70 450 40 S750 10 900 45 S1100 70 1200 35 M0 72 C120 52 260 96 420 72 S700 46 860 76 S1080 96 1200 70" stroke="#8fb0e0" stroke-width="2.5" opacity="0.7"/>
+          <path d="M600 40 C600 18 642 12 654 34 C664 56 626 66 614 50 C606 38 624 28 634 40 M690 34 C696 18 722 18 726 34 C730 48 710 54 704 44" stroke="#a9c3ea" stroke-width="3"/>
+        </g>
+        <circle cx="110" cy="26" r="15" fill="url(#starGlow)"/><circle cx="110" cy="26" r="3.5" fill="#f6e08a"/>
+        <circle cx="250" cy="18" r="12" fill="url(#starGlow)"/><circle cx="250" cy="18" r="2.8000000000000003" fill="#f6e08a"/>
+        <circle cx="372" cy="40" r="13.5" fill="url(#starGlow)"/><circle cx="372" cy="40" r="3.15" fill="#f6e08a"/>
+        <circle cx="520" cy="14" r="15" fill="url(#starGlow)"/><circle cx="520" cy="14" r="3.5" fill="#f6e08a"/>
+        <circle cx="760" cy="22" r="13.5" fill="url(#starGlow)"/><circle cx="760" cy="22" r="3.15" fill="#f6e08a"/>
+        <circle cx="860" cy="44" r="12" fill="url(#starGlow)"/><circle cx="860" cy="44" r="2.8000000000000003" fill="#f6e08a"/>
+        <circle cx="965" cy="18" r="15" fill="url(#starGlow)"/><circle cx="965" cy="18" r="3.5" fill="#f6e08a"/>
+        <circle cx="1040" cy="52" r="10.5" fill="url(#starGlow)"/><circle cx="1040" cy="52" r="2.4499999999999997" fill="#f6e08a"/>
+        <circle cx="1125" cy="30" r="30" fill="url(#starGlow)"/>
+        <circle cx="1125" cy="30" r="13" fill="#f5c542"/>
+        <circle cx="1131" cy="26" r="11" fill="#1b2d5c"/>
+        <path d="M4 150 L4 134 L23 126 L42 134 L42 150 Z M48 150 L48 139 L67 131 L86 139 L86 150 Z M92 150 L92 132 L109.5 124 L127 132 L127 150 Z M134 150 L134 133 L151 125 L168 133 L168 150 Z M175 150 L175 139 L191.5 131 L208 139 L208 150 Z M211 150 L211 130 L229.5 122 L248 130 L248 150 Z M256 150 L256 137 L276.5 129 L297 137 L297 150 Z M303 150 L303 135 L320 127 L337 135 L337 150 Z M347 150 L347 136 L365 128 L383 136 L383 150 Z M387 150 L387 135 L409 127 L431 135 L431 150 Z M437 150 L437 133 L458 125 L479 133 L479 150 Z M486 150 L486 140 L501.5 132 L517 140 L517 150 Z M525 150 L525 137 L547.5 129 L570 137 L570 150 Z M576 150 L576 135 L597.5 127 L619 135 L619 150 Z M623 150 L623 139 L644 131 L665 139 L665 150 Z M676 150 L676 131 L698.5 123 L721 131 L721 150 Z M729 150 L729 140 L748.5 132 L768 140 L768 150 Z M772 150 L772 133 L790 125 L808 133 L808 150 Z M820 150 L820 136 L835 128 L850 136 L850 150 Z M853 150 L853 135 L876 127 L899 135 L899 150 Z M906 150 L906 132 L922 124 L938 132 L938 150 Z M940 150 L940 133 L956 125 L972 133 L972 150 Z M983 150 L983 132 L1000 124 L1017 132 L1017 150 Z M1020 150 L1020 135 L1035 127 L1050 135 L1050 150 Z M1053 150 L1053 139 L1072 131 L1091 139 L1091 150 Z M1094 150 L1094 138 L1112 130 L1130 138 L1130 150 Z M1133 150 L1133 140 L1149.5 132 L1166 140 L1166 150 Z M1172 150 L1172 135 L1188 127 L1204 135 L1204 150 Z" fill="#111a2b"/>
+        <path d="M996 150 L996 112 L1000 96 L1004 112 L1004 150 Z" fill="#111a2b"/>
+        <g fill="#f2c14e"><rect x="10" y="137" width="4" height="4"/><rect x="32" y="137" width="4" height="4"/><rect x="98" y="135" width="4" height="4"/><rect x="117" y="135" width="4" height="4"/><rect x="140" y="136" width="4" height="4"/><rect x="217" y="133" width="4" height="4"/><rect x="238" y="133" width="4" height="4"/><rect x="262" y="140" width="4" height="4"/><rect x="309" y="138" width="4" height="4"/><rect x="327" y="138" width="4" height="4"/><rect x="353" y="139" width="4" height="4"/><rect x="393" y="138" width="4" height="4"/><rect x="443" y="136" width="4" height="4"/><rect x="469" y="136" width="4" height="4"/><rect x="492" y="143" width="4" height="4"/><rect x="531" y="140" width="4" height="4"/><rect x="560" y="140" width="4" height="4"/><rect x="582" y="138" width="4" height="4"/><rect x="609" y="138" width="4" height="4"/><rect x="629" y="142" width="4" height="4"/><rect x="735" y="143" width="4" height="4"/><rect x="758" y="143" width="4" height="4"/><rect x="778" y="136" width="4" height="4"/><rect x="798" y="136" width="4" height="4"/><rect x="826" y="139" width="4" height="4"/><rect x="840" y="139" width="4" height="4"/><rect x="928" y="135" width="4" height="4"/><rect x="946" y="136" width="4" height="4"/><rect x="989" y="135" width="4" height="4"/><rect x="1007" y="135" width="4" height="4"/><rect x="1059" y="142" width="4" height="4"/><rect x="1081" y="142" width="4" height="4"/><rect x="1100" y="141" width="4" height="4"/><rect x="1139" y="143" width="4" height="4"/><rect x="1156" y="143" width="4" height="4"/><rect x="1178" y="138" width="4" height="4"/><rect x="1194" y="138" width="4" height="4"/></g>
+        <path d="M385 150 C380 110 392 80 388 50 C386 30 398 12 402 6 C404 22 414 40 410 70 C408 100 420 120 414 150 Z" fill="#16201a"/>
+        <path d="M396 140 C394 110 400 80 398 40 M406 130 C404 100 410 70 404 30" fill="none" stroke="#2c3a2a" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="keyboard"></div>
+    <div class="mouse"></div>
   </div>
 
   <canvas class="dust" id="dustCanvas"></canvas>
@@ -1078,11 +1051,7 @@
 
 <div class="ui">
   <div class="topbar">
-    <div class="clock-pill glass">
-      <span class="time" id="clockTime">--:--</span>
-      <span class="date" id="clockDate">—</span>
-    </div>
-    <div class="reminder-bell glass" id="reminderBell">
+    <div class="reminder-bell" id="reminderBell">
       <button class="reminder-toggle" id="drawerToggle" type="button" aria-expanded="false" aria-controls="drawer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
         <span class="reminder-title">Reminders</span>
@@ -1101,53 +1070,92 @@
   </div>
 
   <div class="hero">
-    <div class="ring-wrap">
-      <svg viewBox="0 0 200 200">
-        <circle class="ring-track" cx="100" cy="100" r="92"></circle>
-        <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="92"></circle>
-      </svg>
-      <div class="ring-center">
-        <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time">25:00</div>
-        <input class="digits-edit" id="digitsEdit" type="text" inputmode="numeric" aria-label="Session length in minutes and seconds">
-      </div>
+    <div class="priorities">
+      <div class="priorities-title" id="prioritiesTitle">Top 3 priorities</div>
+      <ol class="priority-list" aria-labelledby="prioritiesTitle">
+        <li>
+          <input class="priority-text" id="priority1" type="text" maxlength="80" placeholder="Most important" aria-label="Priority 1">
+          <input class="priority-box" id="priorityBox1" type="number" min="1" max="180" step="5" aria-label="Time box for priority 1, in minutes" title="Time box, in minutes"><span class="priority-unit" aria-hidden="true">m</span>
+          <button class="priority-start" type="button" aria-label="Start the time box for priority 1" title="Start the time box">▶</button>
+          <button class="priority-done" type="button" aria-pressed="false" aria-label="Priority 1 done" title="Cross it off">✓</button>
+        </li>
+        <li>
+          <input class="priority-text" id="priority2" type="text" maxlength="80" placeholder="Next" aria-label="Priority 2">
+          <input class="priority-box" id="priorityBox2" type="number" min="1" max="180" step="5" aria-label="Time box for priority 2, in minutes" title="Time box, in minutes"><span class="priority-unit" aria-hidden="true">m</span>
+          <button class="priority-start" type="button" aria-label="Start the time box for priority 2" title="Start the time box">▶</button>
+          <button class="priority-done" type="button" aria-pressed="false" aria-label="Priority 2 done" title="Cross it off">✓</button>
+        </li>
+        <li>
+          <input class="priority-text" id="priority3" type="text" maxlength="80" placeholder="Then" aria-label="Priority 3">
+          <input class="priority-box" id="priorityBox3" type="number" min="1" max="180" step="5" aria-label="Time box for priority 3, in minutes" title="Time box, in minutes"><span class="priority-unit" aria-hidden="true">m</span>
+          <button class="priority-start" type="button" aria-label="Start the time box for priority 3" title="Start the time box">▶</button>
+          <button class="priority-done" type="button" aria-pressed="false" aria-label="Priority 3 done" title="Cross it off">✓</button>
+        </li>
+      </ol>
     </div>
-    <div class="ring-actions">
-      <div class="controls">
-        <button class="btn btn-ghost" id="resetBtn">Reset</button>
-        <button class="btn btn-primary" id="startBtn">Start focus</button>
-      </div>
-      <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
-    </div>
-    <div class="todo-card glass">
-      <form class="todo-form" id="todoForm">
-        <label for="todoInput">To-do</label>
-        <div class="todo-add-row">
-          <input id="todoInput" type="text" placeholder="Add something" maxlength="120" autocomplete="off">
-          <button class="todo-add" type="submit">Add</button>
+    <div class="monitor">
+      <div class="monitor-app">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 200 200">
+            <circle class="ring-track" cx="100" cy="100" r="92"></circle>
+            <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="92"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time">25:00</div>
+            <input class="digits-edit" id="digitsEdit" type="text" inputmode="numeric" aria-label="Session length in minutes and seconds">
+            <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
+          </div>
         </div>
-      </form>
-      <ul class="todo-list" id="todoList"></ul>
-      <button class="link-btn todo-clear" id="todoClear" type="button" hidden></button>
+        <div class="controls">
+          <button class="btn btn-ghost" id="resetBtn">Reset</button>
+          <button class="btn btn-primary" id="startBtn">Start focus</button>
+        </div>
+      </div>
+      <div class="taskbar">
+        <div class="clock-pill">
+          <span class="time" id="clockTime">--:--</span>
+          <span class="date" id="clockDate">—</span>
+        </div>
+      </div>
     </div>
+    <button class="diary" id="diaryBtn" type="button" aria-haspopup="dialog" aria-label="Open the brain dump diary">Brain dump</button>
+    <dialog class="diary-dialog" id="diary" aria-label="Brain dump">
+      <div class="diary-book">
+        <div class="diary-page" id="diaryLeftPage">
+          <div class="diary-cover">
+            <h2 id="methodsTitle">Top 10 productivity methods</h2>
+            <ol aria-labelledby="methodsTitle">
+              <li>Time box</li>
+              <li>Priority list</li>
+              <li>Say no</li>
+              <li>Movement breaks</li>
+              <li>Limit devices</li>
+              <li>Eat well</li>
+              <li>2-min rule</li>
+              <li>Organize workspace</li>
+              <li>Start hard tasks early</li>
+              <li>Reflect today, plan tomorrow</li>
+            </ol>
+          </div>
+          <textarea id="diaryLeft" aria-label="Left page" spellcheck="true"></textarea>
+          <span class="diary-num" id="diaryLeftNum" aria-hidden="true">1</span>
+        </div>
+        <div class="diary-page">
+          <textarea id="diaryRight" aria-label="Right page" spellcheck="true"></textarea>
+          <span class="diary-num" id="diaryRightNum" aria-hidden="true">2</span>
+        </div>
+      </div>
+      <div class="diary-nav">
+        <button type="button" id="diaryPrev">‹ Back</button>
+        <button type="button" id="diaryClose">Close</button>
+        <button type="button" id="diaryNext">Next ›</button>
+      </div>
+    </dialog>
   </div>
 
 </div>
 
-<aside class="tips-note" aria-labelledby="tipsTitle">
-  <h2 id="tipsTitle">Top 10 productivity methods</h2>
-  <ol>
-    <li>Time-boxing</li>
-    <li>Prioritize</li>
-    <li>Say no</li>
-    <li>Move</li>
-    <li>Control your devices</li>
-    <li>Take short breaks</li>
-    <li>To-do lists</li>
-    <li>Eat well</li>
-    <li>2-minute rule</li>
-    <li>Control social media</li>
-  </ol>
-</aside>
+
 
 <div class="bell">
   <aside class="drawer" id="drawer" aria-label="Reminders" hidden>
@@ -1267,7 +1275,7 @@
     <details class="backup-block" id="fullBackupDetails">
       <summary>Back up everything</summary>
       <div class="backup-body">
-        <p class="backup-hint">Saves your reminders, to-dos, stats, timers and settings. To restore, use Import reminders above. A full backup replaces everything on this page.</p>
+        <p class="backup-hint">Saves your reminders, priorities, brain dump, stats, timers and settings. To restore, use Import reminders above. A full backup replaces everything on this page.</p>
         <textarea class="backup-textarea" id="fullBackupOutput" readonly rows="6"></textarea>
         <div class="backup-row">
           <button type="button" class="ghost-btn" id="fullBackupBtn">Download .json</button>
@@ -1578,79 +1586,6 @@
   });
   digitsEdit.addEventListener('blur', commitEditDigits);
 
-  /* ---------- to-do list ---------- */
-  var TODOS_KEY = 'lockedInRoom.todos.v1';
-  var todoInput = document.getElementById('todoInput');
-  var todoListEl = document.getElementById('todoList');
-  var todoClearBtn = document.getElementById('todoClear');
-  var todos = loadTodos();
-  function loadTodos(){
-    var saved = loadJSON(TODOS_KEY, []);
-    return Array.isArray(saved) ? saved : [];
-  }
-  function updateClearDone(){
-    var doneCount = todos.filter(function(t){ return t.done; }).length;
-    todoClearBtn.hidden = doneCount === 0;
-    todoClearBtn.textContent = 'Clear done (' + doneCount + ')';
-  }
-  function renderTodos(){
-    updateClearDone();
-    todoListEl.innerHTML = '';
-    todos.forEach(function(t){
-      var li = document.createElement('li');
-      li.className = 'todo-item' + (t.done ? ' done' : '');
-      var label = document.createElement('label');
-      var box = document.createElement('input');
-      box.type = 'checkbox';
-      box.checked = t.done;
-      box.addEventListener('change', function(){
-        t.done = box.checked;
-        li.classList.toggle('done', t.done);
-        saveJSON(TODOS_KEY, todos);
-        updateClearDone();
-      });
-      var text = document.createElement('span');
-      text.textContent = t.text;
-      label.appendChild(box);
-      label.appendChild(text);
-      var del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'todo-delete';
-      del.textContent = '×';
-      del.setAttribute('aria-label', 'Delete ' + t.text);
-      del.addEventListener('click', function(){
-        var usedKeyboard = del.matches(':focus-visible'); // the button is about to go, so keep their place
-        todos = todos.filter(function(x){ return x !== t; });
-        saveJSON(TODOS_KEY, todos);
-        li.remove();
-        updateClearDone();
-        if(usedKeyboard) todoInput.focus();
-      });
-      li.appendChild(label);
-      li.appendChild(del);
-      todoListEl.appendChild(li);
-    });
-  }
-  todoClearBtn.addEventListener('click', function(){
-    var usedKeyboard = todoClearBtn.matches(':focus-visible'); // the button hides itself, so keep their place
-    todos = todos.filter(function(t){ return !t.done; });
-    saveJSON(TODOS_KEY, todos);
-    renderTodos();
-    if(usedKeyboard) todoInput.focus();
-  });
-  document.getElementById('todoForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    var text = todoInput.value.trim();
-    if(!text) return;
-    todos.push({ text:text, done:false });
-    saveJSON(TODOS_KEY, todos);
-    todoInput.value = '';
-    todoInput.focus(); // clicking Add moved focus to the button, so they can keep typing
-    renderTodos();
-    todoListEl.scrollTop = todoListEl.scrollHeight;
-  });
-  renderTodos();
-
   /* ---------- clock ---------- */
   var clockTime = document.getElementById('clockTime'), clockDate = document.getElementById('clockDate');
   var WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -1674,87 +1609,6 @@
     }
   }
 
-  /* ---------- time-of-day sky ---------- */
-  var sky = document.getElementById('sky'), celestial = document.getElementById('celestial'), stars = document.getElementById('stars');
-  var KEYFRAMES = [
-    { h:0,  top:[11,11,26],  bot:[26,20,48],  star:1,   glow:'moon' },
-    { h:5,  top:[28,31,58],  bot:[51,48,74],  star:0.7, glow:'moon' },
-    { h:7,  top:[58,58,92],  bot:[217,138,99],star:0.15,glow:'sun'  },
-    { h:9,  top:[106,143,174],bot:[244,201,138],star:0, glow:'sun'  },
-    { h:12, top:[127,168,201],bot:[246,226,184],star:0, glow:'sun'  },
-    { h:17, top:[106,133,173],bot:[240,163,92], star:0, glow:'sun'  },
-    { h:19, top:[60,53,96],  bot:[225,122,77], star:0.35,glow:'sun' },
-    { h:21, top:[23,20,51],  bot:[44,35,80],  star:0.85,glow:'moon' },
-    { h:24, top:[11,11,26],  bot:[26,20,48],  star:1,   glow:'moon' }
-  ];
-  function lerp(a,b,t){ return a + (b-a)*t; }
-  function lerpColor(c1,c2,t){ return 'rgb('+Math.round(lerp(c1[0],c2[0],t))+','+Math.round(lerp(c1[1],c2[1],t))+','+Math.round(lerp(c1[2],c2[2],t))+')'; }
-  function updateSky(){
-    var d = new Date();
-    var hf = d.getHours() + d.getMinutes()/60;
-    var k0, k1;
-    for(var i=0;i<KEYFRAMES.length-1;i++){
-      if(hf >= KEYFRAMES[i].h && hf <= KEYFRAMES[i+1].h){ k0 = KEYFRAMES[i]; k1 = KEYFRAMES[i+1]; break; }
-    }
-    if(!k0){ k0 = KEYFRAMES[0]; k1 = KEYFRAMES[1]; }
-    var t = (hf - k0.h) / (k1.h - k0.h);
-    var top = lerpColor(k0.top, k1.top, t);
-    var bot = lerpColor(k0.bot, k1.bot, t);
-    sky.style.background = 'linear-gradient(180deg, '+top+' 0%, '+bot+' 100%)';
-    stars.style.opacity = lerp(k0.star, k1.star, t).toFixed(2);
-    var isMoon = t < 0.5 ? k0.glow === 'moon' : k1.glow === 'moon';
-    if(isMoon){
-      celestial.style.background = '#f4ead4';
-      celestial.style.boxShadow = '0 0 40px 10px rgba(244,234,212,0.45)';
-      celestial.style.left = '60%'; celestial.style.top = '14%';
-    } else {
-      celestial.style.background = 'var(--amber-soft)';
-      celestial.style.boxShadow = '0 0 46px 14px rgba(255,217,160,0.6)';
-      celestial.style.left = (30 + 40*Math.min(1,Math.max(0,(hf-6)/12)))+'%';
-      celestial.style.top = (10 + 18*Math.sin(Math.min(1,Math.max(0,(hf-6)/12))*Math.PI))+'%';
-    }
-  }
-
-  /* one-time decorative stars + clouds */
-  (function seedScene(){
-    for(var i=0;i<40;i++){
-      var s = document.createElement('span');
-      s.style.left = (Math.random()*100)+'%';
-      s.style.top = (Math.random()*70)+'%';
-      s.style.opacity = (0.3+Math.random()*0.7).toFixed(2);
-      stars.appendChild(s);
-    }
-    // String lights: three swags of wire along the top of the window, with bulbs hanging on them.
-    function swagY(t){ return 12 + 78*Math.abs(Math.sin(3*Math.PI*t)); }
-    var wire = [];
-    for(var w=0;w<=90;w++){ wire.push((w/90*100).toFixed(1)+','+swagY(w/90).toFixed(1)); }
-    document.getElementById('lightsWire').setAttribute('points', wire.join(' '));
-    var lights = document.getElementById('lights');
-    for(var b=1;b<16;b++){
-      var bulb = document.createElement('span');
-      bulb.className = 'bulb';
-      bulb.style.left = (b/16*100)+'%';
-      bulb.style.top = swagY(b/16)+'%';
-      bulb.style.animationDelay = (-b*0.7)+'s';
-      lights.appendChild(bulb);
-    }
-    var cloudsEl = document.getElementById('clouds');
-    for(var c=0;c<3;c++){
-      var cl = document.createElement('div');
-      cl.className = 'cloud';
-      cl.style.top = (10+c*18)+'%';
-      cl.style.left = (-40 - c*30)+'%';
-      if(!reduceMotion){
-        cl.style.animation = 'driftCloud '+(50+c*20)+'s linear infinite';
-        cl.style.animationDelay = (-c*15)+'s';
-      }
-      cloudsEl.appendChild(cl);
-    }
-    var styleTag = document.createElement('style');
-    styleTag.textContent = '@keyframes driftCloud{ from{ transform:translateX(0); } to{ transform:translateX(220vw); } }';
-    document.head.appendChild(styleTag);
-  })();
-
   /* ---------- dust canvas ---------- */
   var dustCanvas = document.getElementById('dustCanvas');
   var dctx = dustCanvas.getContext('2d');
@@ -1762,11 +1616,12 @@
   function sizeDust(){
     dustCanvas.width = window.innerWidth; dustCanvas.height = window.innerHeight;
   }
+  function nearLamp(){ return dustCanvas.width*(0.6 + Math.random()*0.4); } // the lamp is on the right
   function seedDust(){
     motes = [];
     for(var i=0;i<26;i++){
       motes.push({
-        x: Math.random()*dustCanvas.width*0.4,
+        x: nearLamp(),
         y: dustCanvas.height*0.55 + Math.random()*dustCanvas.height*0.4,
         r: 0.6+Math.random()*1.4,
         vy: -0.08-Math.random()*0.18,
@@ -1782,7 +1637,7 @@
     for(var i=0;i<motes.length;i++){
       var p = motes[i];
       p.y += p.vy*frames; p.x += (p.vx + Math.sin(t*0.001+p.phase)*0.06)*frames;
-      if(p.y < dustCanvas.height*0.35){ p.y = dustCanvas.height*0.6+Math.random()*dustCanvas.height*0.35; p.x = Math.random()*dustCanvas.width*0.4; }
+      if(p.y < dustCanvas.height*0.35){ p.y = dustCanvas.height*0.6+Math.random()*dustCanvas.height*0.35; p.x = nearLamp(); }
       dctx.globalAlpha = p.opacity;
       dctx.beginPath(); dctx.arc(p.x,p.y,p.r,0,Math.PI*2); dctx.fill();
     }
@@ -1805,6 +1660,130 @@
   }
   window.addEventListener('resize', handleResize);
 
+  /* ---------- brain dump diary ---------- */
+  // A list of pages, shown two at a time. Before the diary it was one string, which becomes page 1.
+  // The first spread's left side is the inside cover (the methods list), so page 1 faces it and every later spread starts on an even page.
+  var BRAIN_DUMP_KEY = 'lockedInRoom.brainDump.v1';
+  var diaryEl = document.getElementById('diary'), diaryBtn = document.getElementById('diaryBtn');
+  var diaryPrev = document.getElementById('diaryPrev'), diaryNext = document.getElementById('diaryNext');
+  var leftPageEl = document.getElementById('diaryLeftPage');
+  var pageEls = [document.getElementById('diaryLeft'), document.getElementById('diaryRight')];
+  var pageNumEls = [document.getElementById('diaryLeftNum'), document.getElementById('diaryRightNum')];
+  function pageIndex(k){ return spread*2 + k - 1; } // k: 0 left, 1 right. -1 is the inside cover.
+  var pages = loadPages(), spread = 0;
+  function loadPages(){
+    var saved = loadJSON(BRAIN_DUMP_KEY, []);
+    if(typeof saved === 'string') saved = [saved];
+    return Array.isArray(saved) ? saved.filter(function(p){ return typeof p === 'string'; }) : [];
+  }
+  function lastWrittenPage(){
+    for(var i = pages.length-1; i >= 0; i--){ if(pages[i].trim()) return i; }
+    return -1;
+  }
+  function savePages(){
+    saveJSON(BRAIN_DUMP_KEY, pages.slice(0, lastWrittenPage()+1)); // blank pages at the end aren't kept
+  }
+  function blankFromHere(){ return lastWrittenPage() < Math.max(0, pageIndex(0)); } // nothing written on this spread or after it
+  function showSpread(){
+    leftPageEl.classList.toggle('cover', spread === 0);
+    pageEls.forEach(function(el, k){
+      var i = pageIndex(k);
+      el.value = pages[i] || '';
+      el.placeholder = i === 0 ? 'Get it out of your head...' : '';
+      pageNumEls[k].textContent = i+1;
+    });
+    diaryPrev.disabled = spread === 0;
+    diaryNext.disabled = blankFromHere(); // no turning past blank pages
+  }
+  pageEls.forEach(function(el, k){
+    el.addEventListener('input', function(){
+      var i = pageIndex(k);
+      while(pages.length <= i) pages.push('');
+      pages[i] = el.value;
+      savePages();
+      diaryNext.disabled = blankFromHere();
+    });
+  });
+  diaryPrev.addEventListener('click', function(){ spread--; showSpread(); });
+  diaryNext.addEventListener('click', function(){ spread++; showSpread(); pageEls[0].focus(); });
+  diaryBtn.addEventListener('click', function(){
+    pages = loadPages(); // another tab may have written in it
+    spread = Math.floor((Math.max(0, lastWrittenPage()) + 1)/2); // opens where you left off
+    showSpread();
+    diaryEl.showModal();
+  });
+  document.getElementById('diaryClose').addEventListener('click', function(){ diaryEl.close(); });
+  diaryEl.addEventListener('click', function(e){ if(e.target === diaryEl) diaryEl.close(); }); // a click on the dimmed backdrop lands on the dialog itself
+  diaryEl.addEventListener('close', function(){ diaryBtn.focus(); });
+
+  /* ---------- top three priorities (one sticky note) ---------- */
+  // Kept under the old to-do list's key and shape ({ text, done }), three entries long, so backups still read it.
+  // box is the time box in minutes, or empty to use the timer's own focus length.
+  var TODOS_KEY = 'lockedInRoom.todos.v1';
+  var priorityRows = [1,2,3].map(function(n){
+    var text = document.getElementById('priority'+n);
+    return { text:text, box:document.getElementById('priorityBox'+n), row:text.closest('li'), done:text.closest('li').querySelector('.priority-done') };
+  });
+  function savedPriorities(){
+    var saved = loadJSON(TODOS_KEY, []);
+    return Array.isArray(saved) ? saved.filter(function(t){ return t && typeof t.text === 'string'; }) : [];
+  }
+  function setDone(p, done){
+    p.row.classList.toggle('done', done);
+    p.done.setAttribute('aria-pressed', done ? 'true' : 'false');
+  }
+  function renderPriorities(){
+    var saved = savedPriorities();
+    priorityRows.forEach(function(p, i){
+      var t = saved[i] || { text:'' };
+      if(document.activeElement !== p.text) p.text.value = t.text;
+      if(document.activeElement !== p.box) p.box.value = t.box > 0 ? t.box : '';
+      p.box.placeholder = Math.round(settings.focus/60); // what an empty box uses
+      setDone(p, !!t.done);
+    });
+  }
+  function savePriorities(){
+    saveJSON(TODOS_KEY, priorityRows.map(function(p){
+      var box = parseInt(p.box.value, 10);
+      return { text:p.text.value, done:p.row.classList.contains('done'), box:box > 0 ? box : null };
+    }));
+  }
+  renderPriorities();
+  // A list from before the note: its first three open tasks are on the note now, and the rest go to the brain dump rather than vanish.
+  (function moveOldList(){
+    var saved = loadJSON(TODOS_KEY, []);
+    if(Array.isArray(saved) && saved.length === 3) return;
+    var open = savedPriorities().filter(function(t){ return !t.done; }).map(function(t){ return t.text; });
+    var extra = open.slice(3).filter(function(t){ return t.trim(); });
+    if(extra.length){
+      pages[0] = (pages[0] ? pages[0] + '\n\n' : '') + 'From the old to-do list:\n' + extra.map(function(t){ return '- ' + t; }).join('\n');
+      savePages();
+    }
+    priorityRows.forEach(function(p, i){ p.text.value = open[i] || ''; p.box.value = ''; setDone(p, false); });
+    savePriorities();
+  })();
+  priorityRows.forEach(function(p){
+    p.text.addEventListener('input', function(){
+      if(!p.text.value.trim()){ p.box.value = ''; setDone(p, false); } // a deleted task takes its time box and checkmark with it
+      savePriorities();
+    });
+    p.box.addEventListener('input', savePriorities);
+    p.done.addEventListener('click', function(){ // crosses it off, or back on
+      setDone(p, !p.row.classList.contains('done'));
+      savePriorities();
+    });
+    // Time-boxing: a focus session as long as this task's box, started now, replacing any session or break already running.
+    p.row.querySelector('.priority-start').addEventListener('click', function(){
+      var mins = parseInt(p.box.value, 10) > 0 ? parseInt(p.box.value, 10) : Math.round(settings.focus/60);
+      clearInterval(tickHandle);
+      timer.running = false;
+      timer.mode = 'focus';
+      setSessionLength(mins*60); // also becomes the focus length from now on, as typing it on the timer would
+      start();
+      renderPriorities(); // the empty boxes' hint follows the new length
+    });
+  });
+
   /* ---------- resume after a refresh, stay in step with other tabs ---------- */
   var savedTimer = loadJSON(TIMER_KEY, null);
   if(savedTimer && MODE_LABELS[savedTimer.mode] && typeof savedTimer.remaining === 'number'){
@@ -1820,19 +1799,18 @@
     if(e.key === TIMER_KEY) applyTimer(loadJSON(e.key, timer));
     else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); }
     else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); }
-    else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
+    else if(e.key === TODOS_KEY) renderPriorities();
+    else if(e.key === BRAIN_DUMP_KEY && !diaryEl.open) pages = loadPages(); // an open diary keeps what you're typing
   });
 
   /* ---------- init ---------- */
   sizeDust(); seedDust();
-  updateSky();
   renderClock();
   render();
 
   if(!reduceMotion){ requestAnimationFrame(animate); }
 
   setInterval(renderClock, 1000);
-  setInterval(updateSky, 60000);
   setInterval(checkRollover, 30000);
 })();
 </script>
@@ -2442,12 +2420,10 @@
     return true;
   }
 
-  function fireHourlyChime(now, withSound) {
+  function fireHourlyChime(now) {
     var h = now.getHours();
     var h12 = h % 12; if (h12 === 0) h12 = 12;
     var ampm = h >= 12 ? 'PM' : 'AM';
-    showNote('hour', "It's " + h12 + ' ' + ampm);
-    if (!withSound) return;
     queueNoise(HOUR_NOTES);
     queueSpeech("It's " + h12 + ' ' + ampm);
   }
@@ -2457,13 +2433,12 @@
     reminder: { label: 'Starting now', ms: 0, icon: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>' },
     timer: { label: 'Repeating timer', ms: 0, icon: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>' }, // nothing else shows it rang, so it stays
     session: { label: 'Focus timer', ms: 0, icon: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>' },
-    hour: { label: 'Hourly', ms: 5000, icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>' },
     warning: { label: 'Not saved', ms: 0, icon: '<path d="M12 3L2 21h20Z"/><path d="M12 10v5"/><path d="M12 18h.01"/>' }
   };
 
   // Follows whatever notes are up, however they got there or left: a new note pulses in its own color, then the most urgent one still up holds.
   // Reminders and the repeating timer take over the room instead, which hides the edges anyway.
-  var GLOW_ORDER = ['session', 'hour'];
+  var GLOW_ORDER = ['session'];
   var edgeGlowEl = document.getElementById('edgeGlow');
 
   function noteIsUp(kind) {
@@ -2724,7 +2699,7 @@
       var hourKey = tKey + '-' + pad(h);
       if (lastHourlyChimeKey !== hourKey) {
         lastHourlyChimeKey = hourKey;
-        fireHourlyChime(now, claimHourSound(hourKey));
+        if (claimHourSound(hourKey)) fireHourlyChime(now); // only one tab plays it
       }
     }
 
@@ -2882,7 +2857,7 @@
     showNote('session', 'Focus session done. Break started.');
     queueNoise(SESSION_NOTES);
     queueSpeech('This is a test reminder.');
-    fireHourlyChime(new Date(), true);
+    fireHourlyChime(new Date());
   });
 
   // --- Settings dialog (sound + voice toggles live behind the gear icon,
