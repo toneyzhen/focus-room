@@ -81,7 +81,6 @@
     position:absolute; height:5%; width:32%; border-radius:999px;
     background:rgba(255,255,255,0.10);
     filter:blur(2px);
-    transition:height 1.5s ease, width 1.5s ease, background 1.5s ease, filter 1.5s ease;
   }
   .skyline{
     position:absolute; left:0; right:0; bottom:0; height:22%;
@@ -89,12 +88,6 @@
     clip-path: polygon(0% 100%, 0% 40%, 6% 40%, 6% 20%, 12% 20%, 12% 55%, 20% 55%, 20% 10%, 27% 10%, 27% 45%, 35% 45%, 35% 30%, 43% 30%, 43% 60%, 52% 60%, 52% 15%, 60% 15%, 60% 50%, 68% 50%, 68% 25%, 76% 25%, 76% 62%, 85% 62%, 85% 35%, 93% 35%, 93% 55%, 100% 55%, 100% 100%);
     opacity:0.9;
   }
-  canvas.rain{ position:absolute; inset:0; opacity:0; transition:opacity 1s ease; }
-  .raining canvas.rain{ opacity:1; }
-  .raining .sky{ filter:brightness(0.6) saturate(0.45); }
-  .raining .stars{ opacity:0 !important; } /* updateSky sets it inline */
-  .raining .celestial{ opacity:0.2; }
-  .raining .cloud{ height:14%; width:60%; background:rgba(120,125,140,0.55); filter:blur(8px); }
   .windowpane{
     position:absolute; inset:0;
     background:
@@ -201,18 +194,6 @@
     display:flex; flex-direction:column; align-items:flex-start;
     gap:12px;
   }
-  .sound-controls{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-  .sound-control{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 20px; border-radius:999px; }
-  /* In the window's bottom-right corner (offsets mirror .window), once the timer controls can't run into it. */
-  @media (min-width: 920px){
-    .sound-controls{ position:fixed; right:calc(7vw + 14px); bottom:calc(38vh + 14px); flex-direction:column; }
-  }
-  .sound-control button{
-    padding:10px 0; background:none; border:none; color:var(--cream); font-size:15px; font-weight:600; white-space:nowrap; cursor:pointer;
-  }
-  .sound-control button:hover, .sound-control button[aria-pressed="true"]{ color:var(--amber-soft); }
-  .sound-control input{ width:90px; accent-color:var(--amber); cursor:pointer; }
-  .sound-control button[aria-pressed="false"] + input{ opacity:0.5; }
   .clock-pill{
     display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:2px 12px;
     align-self:center; max-width:100%;
@@ -277,10 +258,10 @@
   }
   .link-btn:hover{ color:var(--amber-soft); }
 
-  /* A note lying on the desk, right of the stats: the top 10 of Filtered's ranking of 100 productivity tips, cited in HBR (2018). Its width stops short of the stats bar (half of it is about 207px). */
+  /* A note lying on the desk, right of the to-do card: the top 10 of Filtered's ranking of 100 productivity tips, cited in HBR (2018). Its width stops 16px short of the to-do card (240px either side of centre). */
   .tips-note{
     position:fixed; z-index:1; right:3vw; bottom:2.5vh;
-    width:min(440px, 47vw - 227px); padding:12px 16px 14px; border-radius:3px;
+    width:min(440px, 47vw - 256px); padding:12px 16px 14px; border-radius:3px;
     background:#cdb991; color:#2e2112; box-shadow:0 10px 24px rgba(0,0,0,0.45);
     transform:rotate(-1.2deg);
   }
@@ -334,48 +315,9 @@
   .todo-delete:hover{ color:var(--amber-soft); }
   .todo-clear{ align-self:flex-end; }
 
-  .bottom{
-    width:100%; max-width:1100px; display:flex; align-items:flex-end; justify-content:center;
-    margin-top:auto;
-  }
-  .stats-bar{
-    display:flex; flex-direction:column; max-width:100%; padding:6px; border-radius:16px;
-  }
-  .stats-row{ display:flex; align-items:stretch; }
-  .goal-row{
-    display:flex; align-items:center; gap:10px; padding:8px 16px;
-    border-bottom:1px solid var(--glass-border);
-  }
-  .goal-row label{ font-size:11px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.07em; white-space:nowrap; }
-  .goal-row progress{
-    flex:1; min-width:40px; height:6px; border:none; border-radius:999px; overflow:hidden;
-    appearance:none; -webkit-appearance:none; background:rgba(245,234,212,0.12);
-  }
-  .goal-row progress::-webkit-progress-bar{ background:transparent; }
-  .goal-row progress::-webkit-progress-value{ background:var(--amber); }
-  .goal-row progress::-moz-progress-bar{ background:var(--amber); }
-  .goal-count, .goal-row input{
-    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:14px; font-variant-numeric:tabular-nums;
-    color:var(--cream); white-space:nowrap;
-  }
-  .goal-row input{
-    width:44px; background:transparent; border:none; border-bottom:1px solid var(--glass-border); text-align:center;
-  }
-  .stat{
-    display:flex; align-items:center; gap:10px; padding:10px 22px;
-  }
-  .stat + .stat{ border-left:1px solid var(--glass-border); }
-  .stat svg{ width:18px; height:18px; color:var(--amber); flex-shrink:0; }
-  .stat .val{
-    font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:17px; font-weight:500;
-    font-variant-numeric:tabular-nums;
-  }
-  .stat .lbl{ font-size:11px; color:var(--cream-dim); text-transform:uppercase; letter-spacing:0.07em; }
-
   @media (max-width: 640px){
     .window{ display:none; }
     .cat{ display:none; }
-    .stats-row{ flex-wrap:wrap; }
   }
 
   /* ---------- REMINDERS (from Reminder Bell, nested so its bare h2/label/input rules can't reach the room) ---------- */
@@ -1099,7 +1041,6 @@
       <div class="clouds" id="clouds"></div>
       <div class="skyline"></div>
     </div>
-    <canvas class="rain" id="rainCanvas"></canvas>
     <div class="windowpane"></div>
     <div class="curtain curtain-left"></div>
     <div class="curtain curtain-right"></div>
@@ -1199,17 +1140,6 @@
       </div>
       <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
     </div>
-    <div class="sound-controls">
-      <div class="sound-control glass">
-        <button id="rainBtn" type="button" aria-pressed="false">🌧️ Rain</button>
-        <input id="rainVolume" type="range" min="0" max="1" step="0.01" aria-label="Rain volume">
-      </div>
-      <div class="sound-control glass">
-        <button id="fireBtn" type="button" aria-pressed="false">🔥 Fire</button>
-        <input id="fireVolume" type="range" min="0" max="1" step="0.01" aria-label="Fire volume">
-      </div>
-    </div>
-
     <div class="todo-card glass">
       <form class="todo-form" id="todoForm">
         <label for="todoInput">To-do</label>
@@ -1223,30 +1153,6 @@
     </div>
   </div>
 
-  <div class="bottom">
-    <div class="stats-bar glass">
-      <div class="goal-row">
-        <label for="goalTarget">Daily goal</label>
-        <progress id="goalProgress" value="0" max="4" aria-label="Sessions finished toward today's goal"></progress>
-        <span class="goal-count"><span id="goalDone">0</span> /</span>
-        <input id="goalTarget" type="number" min="1" max="50" step="1" value="4" title="Sessions to finish today">
-      </div>
-      <div class="stats-row">
-      <div class="stat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        <div><div class="val" id="statToday">0h 00m</div><div class="lbl">Today</div></div>
-      </div>
-      <div class="stat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        <div><div class="val" id="statSessions">0</div><div class="lbl">Sessions</div></div>
-      </div>
-      <div class="stat">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-        <div><div class="val" id="statStreak">0 days</div><div class="lbl">Streak</div></div>
-      </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <aside class="tips-note" aria-labelledby="tipsTitle">
@@ -1479,7 +1385,7 @@
   })();
   saveJSON(TIMER_SETTINGS_KEY, settings);
 
-  /* ---------- stats ---------- */
+  /* ---------- stats (not shown for now, but still kept so they're right if the stats bar comes back) ---------- */
   var stats = loadJSON(STATS_KEY, null);
   if(!stats){ stats = { date: todayStr(), focusedSec:0, sessions:0, streak:0, lastActiveDate:null }; }
   else if(typeof stats.focusedSec !== 'number'){ stats.focusedSec = Math.round((stats.focusedMin||0)*60); delete stats.focusedMin; }
@@ -1500,26 +1406,6 @@
   var startBtn = document.getElementById('startBtn');
   var resetBtn = document.getElementById('resetBtn');
   var skipBtn = document.getElementById('skipBtn');
-  var statTodayEl = document.getElementById('statToday');
-  var statSessionsEl = document.getElementById('statSessions');
-  var statStreakEl = document.getElementById('statStreak');
-  var goalProgressEl = document.getElementById('goalProgress');
-  var goalDoneEl = document.getElementById('goalDone');
-  var goalTargetEl = document.getElementById('goalTarget');
-  var GOAL_KEY = 'lockedInRoom.goal.v1';
-  var goal = loadGoal();
-  function loadGoal(){
-    var saved = loadJSON(GOAL_KEY, 4);
-    return Number.isInteger(saved) && saved >= 1 ? saved : 4;
-  }
-  goalTargetEl.addEventListener('change', function(){
-    var entered = parseInt(goalTargetEl.value, 10);
-    if(entered >= 1){
-      goal = Math.min(entered, 50);
-      saveJSON(GOAL_KEY, goal);
-    }
-    renderStats(); // also puts back a blank or invalid entry
-  });
 
   var R = 92, CIRC = 2*Math.PI*R;
   ringProgress.style.strokeDasharray = CIRC.toFixed(2);
@@ -1610,7 +1496,7 @@
       stats.lastActiveDate = today;
     }
   }
-  // Very short timers are for testing, so they don't touch the goal, streak or totals.
+  // Very short timers are for testing, so they don't touch the streak or totals.
   function countsAsSession(seconds){
     return seconds >= 600;
   }
@@ -1622,7 +1508,6 @@
     stats.focusedSec += settings.focus;
     updateStreak();
     saveJSON(STATS_KEY, stats);
-    renderStats();
   }
   function completeSession(){
     var saved = loadJSON(TIMER_KEY, null);
@@ -1655,99 +1540,6 @@
   function flashRing(){
     ringProgress.style.filter = 'drop-shadow(0 0 22px rgba(240,169,78,0.95))';
     setTimeout(function(){ ringProgress.style.filter = 'drop-shadow(0 0 10px rgba(240,169,78,0.55))'; }, 900);
-  }
-
-  /* ---------- rain and fire sounds (generated noise, so there's no audio file to load) ---------- */
-  var soundCtx = null;
-  function ambientSound(o){
-    var gain = null, input = null, buffer = null, source = null;
-    o.volume.value = loadJSON(o.key, 0.5);
-    function level(){ return o.volume.value * o.loudness; }
-    function setUp(){
-      if(!soundCtx){ soundCtx = new AudioContext(); }
-      buffer = soundCtx.createBuffer(1, soundCtx.sampleRate*o.seconds, soundCtx.sampleRate);
-      o.fill(buffer.getChannelData(0), soundCtx.sampleRate);
-      input = soundCtx.createBiquadFilter();
-      input.type = 'highpass'; input.frequency.value = o.highpass;
-      var lowpass = soundCtx.createBiquadFilter();
-      lowpass.type = 'lowpass'; lowpass.frequency.value = o.lowpass;
-      gain = soundCtx.createGain();
-      gain.gain.value = 0;
-      input.connect(lowpass); lowpass.connect(gain); gain.connect(soundCtx.destination);
-    }
-    function start(){
-      if(!buffer) setUp();
-      soundCtx.resume();
-      source = soundCtx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(input);
-      source.start();
-      gain.gain.setTargetAtTime(level(), soundCtx.currentTime, 0.3);
-    }
-    function stop(){
-      gain.gain.setTargetAtTime(0, soundCtx.currentTime, 0.1);
-      source.stop(soundCtx.currentTime + 0.5);
-      source = null;
-    }
-    o.button.addEventListener('click', function(){
-      var turnOn = !source;
-      try{
-        if(turnOn) start(); else stop();
-      }catch(e){ return; } // no Web Audio here, so the button just stays off
-      o.button.setAttribute('aria-pressed', turnOn ? 'true' : 'false');
-      if(o.onToggle) o.onToggle(turnOn);
-    });
-    o.volume.addEventListener('input', function(){
-      if(source) gain.gain.setTargetAtTime(level(), soundCtx.currentTime, 0.05);
-    });
-    o.volume.addEventListener('change', function(){ saveJSON(o.key, Number(o.volume.value)); });
-  }
-  ambientSound({
-    button: document.getElementById('rainBtn'), volume: document.getElementById('rainVolume'), key: 'lockedInRoom.rainVolume.v1',
-    loudness: 0.35, // full-scale noise is painfully loud
-    seconds: 4, highpass: 400, lowpass: 7000,
-    fill: function(samples){
-      for(var i=0;i<samples.length;i++){ samples[i] = Math.random()*2 - 1; }
-    },
-    onToggle: function(on){
-      raining = on;
-      document.querySelector('.window').classList.toggle('raining', on);
-    }
-  });
-  ambientSound({
-    button: document.getElementById('fireBtn'), volume: document.getElementById('fireVolume'), key: 'lockedInRoom.fireVolume.v1',
-    loudness: 1.2, // quieter per sample than rain's white noise, so it needs more to match
-    seconds: 12, highpass: 50, lowpass: 5000,
-    // A low rumble with short decaying pops scattered through it.
-    fill: function(samples, rate){
-      var last = 0, i;
-      for(i=0;i<samples.length;i++){
-        last = (last + 0.02*(Math.random()*2 - 1)) / 1.02;
-        samples[i] = last * 1.2;
-      }
-      for(var pop=0;pop<70;pop++){
-        var size = Math.random();
-        var len = Math.floor(rate*(0.002 + size*size*0.02));
-        var at = Math.floor(Math.random()*(samples.length - len));
-        for(i=0;i<len;i++){
-          var fade = 1 - i/len;
-          samples[at+i] += (0.15 + size*size*0.6) * (Math.random()*2 - 1) * fade*fade;
-        }
-      }
-    }
-  });
-
-  function renderStats(){
-    var totalMin = Math.round(stats.focusedSec/60);
-    var h = Math.floor(totalMin/60), m = totalMin%60;
-    statTodayEl.textContent = h+'h '+String(m).padStart(2,'0')+'m';
-    statSessionsEl.textContent = String(stats.sessions);
-    statStreakEl.textContent = stats.streak + (stats.streak === 1 ? ' day' : ' days');
-    goalProgressEl.max = goal;
-    goalProgressEl.value = stats.sessions;
-    goalDoneEl.textContent = String(stats.sessions);
-    goalTargetEl.value = goal;
   }
 
   startBtn.addEventListener('click', function(){ timer.running ? pause() : start(); });
@@ -1901,7 +1693,6 @@
       stats.date = today; stats.focusedSec = 0; stats.sessions = 0;
       if(stats.lastActiveDate && daysBetween(stats.lastActiveDate, today) > 1) stats.streak = 0;
       saveJSON(STATS_KEY, stats);
-      renderStats();
     }
   }
 
@@ -1986,45 +1777,6 @@
     document.head.appendChild(styleTag);
   })();
 
-  /* ---------- rain canvas ---------- */
-  var rainCanvas = document.getElementById('rainCanvas');
-  var rctx = rainCanvas.getContext('2d');
-  var drops = [];
-  var raining = false;
-  function sizeRain(){
-    var rect = rainCanvas.parentElement.getBoundingClientRect();
-    rainCanvas.width = rect.width; rainCanvas.height = rect.height;
-  }
-  function seedDrops(){
-    drops = [];
-    var count = Math.floor((rainCanvas.width*rainCanvas.height)/8000);
-    for(var i=0;i<count;i++){
-      drops.push({
-        x: Math.random()*rainCanvas.width,
-        y: Math.random()*rainCanvas.height,
-        len: 10+Math.random()*12,
-        speed: 135+Math.random()*90, // pixels per second
-        opacity: 0.15+Math.random()*0.2
-      });
-    }
-  }
-  function drawRain(seconds){
-    rctx.clearRect(0,0,rainCanvas.width,rainCanvas.height);
-    rctx.strokeStyle = 'rgba(220,230,245,0.8)';
-    rctx.lineWidth = 1;
-    for(var i=0;i<drops.length;i++){
-      var d = drops[i];
-      rctx.globalAlpha = d.opacity;
-      rctx.beginPath();
-      rctx.moveTo(d.x, d.y);
-      rctx.lineTo(d.x-2, d.y+d.len);
-      rctx.stroke();
-      d.y += d.speed*seconds; d.x -= 8*seconds;
-      if(d.y > rainCanvas.height){ d.y = -d.len; d.x = Math.random()*rainCanvas.width; }
-    }
-    rctx.globalAlpha = 1;
-  }
-
   /* ---------- dust canvas ---------- */
   var dustCanvas = document.getElementById('dustCanvas');
   var dctx = dustCanvas.getContext('2d');
@@ -2065,15 +1817,12 @@
       // Every frame, by elapsed time, so things glide at any refresh rate. Capped so nothing leaps after the tab was hidden.
       var seconds = Math.min((t - lastFrame)/1000, 0.1);
       lastFrame = t;
-      if(raining){ drawRain(seconds); }
       drawDust(t, seconds*60);
     }
     requestAnimationFrame(animate);
   }
 
   function handleResize(){
-    sizeRain(); seedDrops();
-    if(reduceMotion || raining) drawRain(0);
     sizeDust(); seedDust();
   }
   window.addEventListener('resize', handleResize);
@@ -2092,20 +1841,17 @@
   window.addEventListener('storage', function(e){
     if(e.key === TIMER_KEY) applyTimer(loadJSON(e.key, timer));
     else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); }
-    else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); renderStats(); }
+    else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); }
     else if(e.key === TODOS_KEY){ todos = loadTodos(); renderTodos(); }
-    else if(e.key === GOAL_KEY){ goal = loadGoal(); renderStats(); }  });
+  });
 
   /* ---------- init ---------- */
-  sizeRain(); seedDrops();
   sizeDust(); seedDust();
   updateSky();
   renderClock();
-  renderStats();
   render();
 
   if(!reduceMotion){ requestAnimationFrame(animate); }
-  else { drawRain(0); } // still drops, shown only while it's raining
 
   setInterval(renderClock, 1000);
   setInterval(updateSky, 60000);

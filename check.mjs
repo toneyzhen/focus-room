@@ -23,8 +23,8 @@ const rulesAt = (when, stats) => {
     constructor(...args) { args.length ? super(...args) : super(when); }
   }
   const noop = () => {};
-  return new Function('Date', 'MISSED', 'stats', 'saveJSON', 'renderStats', 'STORAGE_KEY', 'SETTINGS_KEY', 'STATS_KEY', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(
-    FakeDate, -1e6, stats, noop, noop, 'lockedInRoom.reminders.v1', 'reminderBell.settings.v1', 'lockedInRoom.stats.v1');
+  return new Function('Date', 'MISSED', 'stats', 'saveJSON', 'STORAGE_KEY', 'SETTINGS_KEY', 'STATS_KEY', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(
+    FakeDate, -1e6, stats, noop, 'lockedInRoom.reminders.v1', 'reminderBell.settings.v1', 'lockedInRoom.stats.v1');
 };
 
 // Ordinary dates, so a clock change can't shift the expected minutes.
