@@ -249,8 +249,13 @@
   }
   .tips-note h2{ margin:0 0 6px; font-family:'Fraunces',Georgia,serif; font-style:italic; font-size:15px; font-weight:500; }
   .tips-note ol{ margin:0; padding-left:20px; columns:2; column-gap:22px; font-size:13px; line-height:1.45; }
-  /* Smaller windows have no free desk for it. */
-  @media (max-width:1199px), (max-height:620px){ .tips-note{ display:none; } }
+  /* Smaller type where the desk is cramped, such as a laptop at 150% display scaling (about 1067x560). Below that there's no free desk for it. */
+  @media (max-width:1199px), (max-height:679px){
+    .tips-note{ padding:8px 12px 10px; }
+    .tips-note h2{ font-size:13px; margin-bottom:3px; }
+    .tips-note ol{ padding-left:17px; column-gap:14px; font-size:11.5px; line-height:1.35; }
+  }
+  @media (max-width:1039px), (max-height:479px){ .tips-note{ display:none; } }
 
   .todo-card{
     width:min(92vw,480px); padding:16px 22px; border-radius:16px;
