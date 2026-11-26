@@ -17,14 +17,14 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'isBackupKey', 'listItemsOk', 'readBackup'];
+const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'formatFocused', 'isBackupKey', 'listItemsOk', 'readBackup'];
 const rulesAt = (when, stats) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
   }
   const noop = () => {};
-  return new Function('Date', 'MISSED', 'stats', 'saveJSON', 'STORAGE_KEY', 'SETTINGS_KEY', 'STATS_KEY', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(
-    FakeDate, -1e6, stats, noop, 'lockedInRoom.reminders.v1', 'reminderBell.settings.v1', 'lockedInRoom.stats.v1');
+  return new Function('Date', 'MISSED', 'stats', 'saveJSON', 'STORAGE_KEY', 'STATS_KEY', `${names.map(source).join('\n')}\nreturn { ${names.join(', ')} };`)(
+    FakeDate, -1e6, stats, noop, 'lockedInRoom.reminders.v1', 'lockedInRoom.stats.v1');
 };
 
 // Ordinary dates, so a clock change can't shift the expected minutes.
@@ -113,10 +113,19 @@ assert.equal(afterRollover('2026-10-20T23:00:00', statsOn('2026-10-20', '2026-10
 assert.ok(!evening.countsAsSession(599), 'short test timers do not count');
 assert.ok(evening.countsAsSession(600));
 
+// The time focused today, in the monitor's taskbar.
+assert.equal(evening.formatFocused(1500), '25m');
+assert.equal(evening.formatFocused(4500), '1h 15m');
+assert.equal(evening.formatFocused(3600), '1h 00m');
+assert.equal(evening.formatFocused(0), '0m');
+
 // Restoring a full backup replaces what's saved, so a damaged one has to be refused.
 const backupOf = (saved) => ({ lockedInRoomBackup: saved });
-const good = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]', 'reminderBell.settings.v1': '{}' };
+const good = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.priorities.v1': '[{"text":"a","done":true,"box":45}]' };
 assert.deepEqual(evening.readBackup(backupOf(good)), good);
+const older = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]', 'reminderBell.settings.v1': '{}' };
+assert.deepEqual(evening.readBackup(backupOf(older)), { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]' }, "an older backup still restores, without Reminder Bell's settings");
+assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.priorities.v1': '[{"done":true}]' })), null, 'a priority with no text');
 assert.equal(evening.readBackup(backupOf({ 'someone.elses.key': '1' })), null, 'an unknown key');
 assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': 'not json' })), null, 'broken JSON');
 assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.reminders.v1': '{}' })), null, 'reminders that are not a list');

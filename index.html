@@ -151,7 +151,7 @@
   .monitor .btn{ padding:clamp(6px,1vh,10px) clamp(16px,2vh,24px); font-size:14px; }
   .monitor .btn-primary{ min-width:128px; }
   .taskbar{
-    display:flex; justify-content:flex-end; padding:3px 12px; border-radius:0 0 4px 4px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px; padding:3px 12px; border-radius:0 0 4px 4px;
     background:rgba(245,234,212,0.04); border-top:1px solid rgba(245,234,212,0.07);
   }
   /* The room on a grid: a side column each side of the monitor, the wall above the desk, and the desk itself (--desk tall, matching the room's desk).
@@ -180,7 +180,20 @@
       border-radius:4px 4px 2px 2px; background:#1b1620; box-shadow:0 6px 12px rgba(0,0,0,0.5);
     }
   }
-  .clock-pill{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; }
+  /* Today's focus sessions, like a tray in the taskbar's corner. A new dot pops in, and a finished set of four glows. */
+  .progress-tray{ display:flex; align-items:center; gap:8px; min-width:0; font-size:clamp(11px,1.5vh,13px); color:var(--cream-dim); white-space:nowrap; }
+  .session-dots{ display:flex; gap:4px; }
+  .session-dot{ width:9px; height:9px; border-radius:50%; border:1.5px solid rgba(240,169,78,0.45); }
+  .session-dot.on{ background:var(--amber); border-color:var(--amber); box-shadow:0 0 6px rgba(240,169,78,0.6); }
+  .session-dot.new{ animation:dotPop 0.9s ease-out; }
+  .session-dots.set-done .session-dot.on{ animation:setGlow 1.6s ease-in-out 2; }
+  .reduced-motion .session-dot{ animation:none !important; }
+  @keyframes dotPop{ 0%{ transform:scale(0.3); } 55%{ transform:scale(1.7); box-shadow:0 0 14px rgba(255,217,160,0.95); } 100%{ transform:scale(1); } }
+  @keyframes setGlow{ 0%,100%{ box-shadow:0 0 6px rgba(240,169,78,0.6); } 50%{ box-shadow:0 0 16px rgba(255,217,160,1); } }
+  .progress-text{ overflow:hidden; text-overflow:ellipsis; }
+  .progress-streak{ color:var(--amber-soft); }
+  .progress-streak:empty{ display:none; }
+  .clock-pill{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; flex-shrink:0; }
   .clock-pill .time{ font-size:clamp(12px,1.8vh,15px); font-weight:500; font-variant-numeric:tabular-nums; }
   .clock-pill .date{ font-size:clamp(11px,1.5vh,13px); color:var(--cream-dim); }
 
@@ -193,8 +206,9 @@
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   }
   .ring-center .link-btn{ position:absolute; bottom:24%; font-size:12px; } /* under the digits without moving them */
-  .break-hint{ /* above the digits during a break */
-    position:absolute; top:24%; font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--amber-soft);
+  .ring-note{ /* above the digits: the break's nudge, or the time-boxed priority */
+    position:absolute; top:24%; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--amber-soft);
   }
   .digits, .digits-edit{
     font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:500;
@@ -309,6 +323,9 @@
   .priority-start:hover, .priority-done:hover, .priority-done[aria-pressed="true"]{ color:#2e2112; }
   .priority-start:focus-visible, .priority-done:focus-visible{ outline-color:#2e2112; }
   .priority-list li.done .priority-text{ text-decoration:line-through; color:rgba(46,33,18,0.5); }
+  /* The one being time-boxed right now: underlined in ink, its ▶ filled in. */
+  .priority-list li.boxing .priority-text{ font-weight:600; border-bottom-color:#2e2112; }
+  .priority-list li.boxing .priority-start{ color:#2e2112; }
 
   /* Shorter type on short windows, so the note leaves the monitor more room. */
   @media (max-height:679px){
@@ -938,9 +955,6 @@
     color:var(--ink-soft); cursor:pointer;
   }
   .icon-btn:hover{ color:var(--brass); border-color:var(--brass); }
-
-  /* Notes are only the takeover's list now: every notification fills the screen until you click it away. */
-  .toasts{ display:none; }
 </style>
 </head>
 <body style="margin:0;">
@@ -1052,7 +1066,7 @@
             <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="92"></circle>
           </svg>
           <div class="ring-center">
-            <span class="break-hint" id="breakHint" style="visibility:hidden;">Get up and move</span>
+            <span class="ring-note" id="ringNote" style="visibility:hidden;"></span>
             <div class="digits" id="digits" tabindex="0" role="button" aria-label="Edit session length" title="Click to set the time: 25 (minutes), 25:30, 90s or 1m 30s">25:00</div>
             <input class="digits-edit" id="digitsEdit" type="text" aria-label="Session length: minutes, minutes:seconds, or seconds like 90s">
             <button class="link-btn" id="skipBtn" style="visibility:hidden;">Skip break</button>
@@ -1064,6 +1078,11 @@
         </div>
       </div>
       <div class="taskbar">
+        <div class="progress-tray" id="progressTray" role="img">
+          <span class="session-dots" id="sessionDots" aria-hidden="true"></span>
+          <span class="progress-text" id="progressText" aria-hidden="true"></span>
+          <span class="progress-streak" id="progressStreak" aria-hidden="true"></span>
+        </div>
         <div class="clock-pill">
           <span class="time" id="clockTime">--:--</span>
           <span class="date" id="clockDate">—</span>
@@ -1212,7 +1231,7 @@
   <button type="button" class="btn btn-primary" id="takeoverOkBtn">On it</button>
 </dialog>
 
-  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <div class="pending-notes" id="pendingNotes" hidden></div>
 </div>
 
 <script>
@@ -1231,11 +1250,11 @@
     try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ document.dispatchEvent(new Event('savefailed')); }
   }
 
-  // Our own keys: the old Lamplight page shares the ssr_ ones, reads a short timer as minutes and leaves yesterday's time in the stats.
-  var TIMER_SETTINGS_KEY = 'lockedInRoom.timerSettings.v1', STATS_KEY = 'lockedInRoom.stats.v1', TIMER_KEY = 'lockedInRoom.timer.v1';  [['ssr_settings',TIMER_SETTINGS_KEY], ['ssr_stats',STATS_KEY], ['ssr_timer',TIMER_KEY]].forEach(function(k){
-    try{
-      if(localStorage.getItem(k[1]) === null && localStorage.getItem(k[0]) !== null) localStorage.setItem(k[1], localStorage.getItem(k[0]));
-    }catch(e){}
+  // Our own keys, not the old Lamplight page's ssr_ ones: it reads a short timer as minutes and leaves yesterday's time in the stats.
+  var TIMER_SETTINGS_KEY = 'lockedInRoom.timerSettings.v1', STATS_KEY = 'lockedInRoom.stats.v1', TIMER_KEY = 'lockedInRoom.timer.v1';
+  // Saved by features since removed (rain and fire, the daily goal, the hourly chime), so nothing reads them.
+  ['rainVolume', 'fireVolume', 'goal', 'lastHourlyChime'].forEach(function(name){
+    try{ localStorage.removeItem('lockedInRoom.' + name + '.v1'); }catch(e){}
   });
 
   function todayStr(d){
@@ -1259,7 +1278,7 @@
   })();
   saveJSON(TIMER_SETTINGS_KEY, settings);
 
-  /* ---------- stats (not shown for now, but still kept so they're right if the stats bar comes back) ---------- */
+  /* ---------- stats: today's sessions and focused time, and the streak, shown in the monitor's taskbar ---------- */
   var stats = loadJSON(STATS_KEY, null);
   if(!stats){ stats = { date: todayStr(), focusedSec:0, sessions:0, streak:0, lastActiveDate:null }; }
   else if(typeof stats.focusedSec !== 'number'){ stats.focusedSec = Math.round((stats.focusedMin||0)*60); delete stats.focusedMin; }
@@ -1280,7 +1299,7 @@
   var startBtn = document.getElementById('startBtn');
   var resetBtn = document.getElementById('resetBtn');
   var skipBtn = document.getElementById('skipBtn');
-  var breakHint = document.getElementById('breakHint');
+  var ringNote = document.getElementById('ringNote');
 
   var R = 92, CIRC = 2*Math.PI*R;
   ringProgress.style.strokeDasharray = CIRC.toFixed(2);
@@ -1293,7 +1312,9 @@
     running:false,
     endAt:null,
     remaining: settings.focus,
-    total: settings.focus // this session's length: the default, or a time box's
+    total: settings.focus, // this session's length: the default, or a time box's
+    task: null, // the priority being time-boxed, if any
+    boxRow: null // and which of the three it is
   };
 
   function durationFor(mode){ return settings[mode]; }
@@ -1304,6 +1325,7 @@
     timer.endAt = null;
     timer.mode = mode;
     timer.total = timer.remaining = seconds;
+    timer.task = timer.boxRow = null;
   }
   function formatMMSS(totalSec){
     var m = Math.floor(totalSec/60), s = totalSec%60;
@@ -1315,7 +1337,13 @@
     var frac = 1 - (timer.remaining / sessionLength());
     ringProgress.style.strokeDashoffset = (CIRC * (1-frac)).toFixed(2);
     startBtn.textContent = timer.running ? 'Pause' : (timer.remaining === sessionLength() ? MODE_START_LABELS[timer.mode] : 'Resume');
-    skipBtn.style.visibility = breakHint.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden'; // keep their space, so the ring doesn't jump when a break starts
+    skipBtn.style.visibility = (timer.mode !== 'focus') ? 'visible' : 'hidden'; // keeps its space, so the ring doesn't jump when a break starts
+    // Above the digits: on a break, a nudge to move; in a time box, what it's for.
+    var note = timer.mode !== 'focus' ? 'Get up and move' : (timer.task || '');
+    ringNote.textContent = note;
+    ringNote.title = note;
+    ringNote.style.visibility = note ? 'visible' : 'hidden';
+    markBoxedPriority();
     renderTitle();
   }
   function renderTitle(){
@@ -1382,23 +1410,28 @@
   function countsAsSession(seconds){
     return seconds >= 600;
   }
-  function creditSession(seconds){
-    if(!countsAsSession(seconds)) return;
+  function creditSession(seconds){ // true if it counted
+    if(!countsAsSession(seconds)) return false;
     stats = loadJSON(STATS_KEY, stats); // another tab may have added to it
     checkRollover();
     stats.sessions += 1;
     stats.focusedSec += seconds;
     updateStreak();
     saveJSON(STATS_KEY, stats);
+    return true;
   }
   function completeSession(){
     var saved = loadJSON(TIMER_KEY, null);
     if(saved && saved.endAt !== timer.endAt){ applyTimer(saved); return; } // another tab already finished this one
     var enteringBreak = timer.mode === 'focus';
-    if(enteringBreak) creditSession(sessionLength());
+    var task = timer.task;
+    var counted = enteringBreak && creditSession(sessionLength());
     var next = enteringBreak ? 'break' : 'focus';
     startFresh(next, durationFor(next)); // a time box ends back on the default lengths
-    document.dispatchEvent(new CustomEvent('sessionend', { detail: { enteringBreak: enteringBreak } })); // the bell script plays and shows it
+    if(counted) renderProgress(true);
+    document.dispatchEvent(new CustomEvent('sessionend', { detail: { // the bell script shows it
+      enteringBreak: enteringBreak, task: task, counted: counted, sessions: stats.sessions, focused: formatFocused(stats.focusedSec)
+    } }));
     flashRing();
     if(enteringBreak){ start(); } else { saveTimer(); render(); }
   }
@@ -1487,6 +1520,34 @@
     clockTime.textContent = h12+':'+String(m).padStart(2,'0')+' '+suffix;
     clockDate.textContent = WEEKDAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate();
   }
+
+  /* ---------- today's progress, in the monitor's taskbar ---------- */
+  // A dot per focus session, in sets of four, plus time focused and the streak: a small reward each time one fills in.
+  var sessionDotsEl = document.getElementById('sessionDots');
+  var progressTextEl = document.getElementById('progressText');
+  function formatFocused(seconds){
+    var mins = Math.round(seconds/60), h = Math.floor(mins/60);
+    return h ? h+'h '+String(mins%60).padStart(2,'0')+'m' : mins+'m';
+  }
+  function renderProgress(justEarned){
+    var done = stats.sessions;
+    var shown = Math.min(Math.max(4, Math.ceil(done/4)*4), 12); // fill a set of four, then start the next
+    sessionDotsEl.textContent = '';
+    for(var i = 0; i < shown; i++){
+      var dot = document.createElement('span');
+      dot.className = 'session-dot' + (i < done ? ' on' : '') + (justEarned && i === done-1 ? ' new' : '');
+      sessionDotsEl.appendChild(dot);
+    }
+    if(justEarned && done % 4 === 0) sessionDotsEl.classList.add('set-done'); // a whole set: they all light up
+    else sessionDotsEl.classList.remove('set-done');
+    var text = done ? formatFocused(stats.focusedSec) + ' today' : 'No sessions yet today';
+    if(done > shown) text = '+' + (done - shown) + ' · ' + text;
+    progressTextEl.textContent = text;
+    progressStreakEl.textContent = stats.streak >= 2 ? stats.streak + '-day streak' : '';
+    progressTrayEl.setAttribute('aria-label', done + ' focus session' + (done === 1 ? '' : 's') + ' today, ' + formatFocused(stats.focusedSec) + (stats.streak >= 2 ? ', ' + stats.streak + '-day streak' : ''));
+  }
+  var progressStreakEl = document.getElementById('progressStreak');
+  var progressTrayEl = document.getElementById('progressTray');
 
   /* ---------- daily rollover watcher ---------- */
   function checkRollover(){
@@ -1606,17 +1667,17 @@
   diaryEl.addEventListener('close', function(){ diaryBtn.focus(); });
 
   /* ---------- top three priorities (one sticky note) ---------- */
-  // Kept under the old to-do list's key and shape ({ text, done }), three entries long, so backups still read it.
-  // box is the time box in minutes, or empty to use the timer's own focus length.
-  var TODOS_KEY = 'lockedInRoom.todos.v1';
+  // Three entries of { text, done, box }: box is the time box in minutes, or empty to use the timer's own focus length.
+  var PRIORITIES_KEY = 'lockedInRoom.priorities.v1';
+  var OLD_TODOS_KEY = 'lockedInRoom.todos.v1'; // where they were kept before, and still are in older backups
   var priorityRows = [1,2,3].map(function(n){
     var text = document.getElementById('priority'+n);
     return { text:text, box:document.getElementById('priorityBox'+n), row:text.closest('li'), done:text.closest('li').querySelector('.priority-done') };
   });
-  function savedPriorities(){
-    var saved = loadJSON(TODOS_KEY, []);
+  function validTasks(saved){
     return Array.isArray(saved) ? saved.filter(function(t){ return t && typeof t.text === 'string'; }) : [];
   }
+  function savedPriorities(){ return validTasks(loadJSON(PRIORITIES_KEY, [])); }
   function setDone(p, done){
     p.row.classList.toggle('done', done);
     p.done.setAttribute('aria-pressed', done ? 'true' : 'false');
@@ -1632,27 +1693,35 @@
     });
   }
   function savePriorities(){
-    saveJSON(TODOS_KEY, priorityRows.map(function(p){
+    saveJSON(PRIORITIES_KEY, priorityRows.map(function(p){
       var box = parseInt(p.box.value, 10);
       return { text:p.text.value, done:p.row.classList.contains('done'), box:box > 0 ? box : null };
     }));
   }
-  renderPriorities();
-  // A list from before the note: its first three open tasks are on the note now, and the rest go to the brain dump rather than vanish.
+  // Moves them over from the old key once. Three entries are already the note; a longer to-do list from before it
+  // puts its first three open tasks on the note and the rest in the brain dump rather than lose them.
   (function moveOldList(){
-    var saved = loadJSON(TODOS_KEY, []);
-    if(Array.isArray(saved) && saved.length === 3) return;
-    var open = savedPriorities().filter(function(t){ return !t.done; }).map(function(t){ return t.text; });
-    var extra = open.slice(3).filter(function(t){ return t.trim(); });
-    if(extra.length){
-      pages[0] = (pages[0] ? pages[0] + '\n\n' : '') + 'From the old to-do list:\n' + extra.map(function(t){ return '- ' + t; }).join('\n');
-      savePages();
+    var old = loadJSON(OLD_TODOS_KEY, null);
+    if(old === null || localStorage.getItem(PRIORITIES_KEY) !== null){
+      try{ localStorage.removeItem(OLD_TODOS_KEY); }catch(e){}
+      return;
     }
-    priorityRows.forEach(function(p, i){ p.text.value = open[i] || ''; p.box.value = ''; setDone(p, false); });
-    savePriorities();
+    var tasks = validTasks(old);
+    if(tasks.length !== 3){
+      var open = tasks.filter(function(t){ return !t.done; }).map(function(t){ return t.text; });
+      var extra = open.slice(3).filter(function(t){ return t.trim(); });
+      if(extra.length){
+        pages[0] = (pages[0] ? pages[0] + '\n\n' : '') + 'From the old to-do list:\n' + extra.map(function(t){ return '- ' + t; }).join('\n');
+        savePages();
+      }
+      tasks = [0,1,2].map(function(i){ return { text:open[i] || '', done:false, box:null }; });
+    }
+    saveJSON(PRIORITIES_KEY, tasks);
+    try{ localStorage.removeItem(OLD_TODOS_KEY); }catch(e){}
   })();
+  renderPriorities();
   document.addEventListener('focuslengthchange', renderPriorities); // the empty boxes' hint shows the default
-  priorityRows.forEach(function(p){
+  priorityRows.forEach(function(p, i){
     p.text.addEventListener('input', function(){
       if(!p.text.value.trim()){ p.box.value = ''; setDone(p, false); } // a deleted task takes its time box and checkmark with it
       savePriorities();
@@ -1666,9 +1735,18 @@
     p.row.querySelector('.priority-start').addEventListener('click', function(){
       var mins = parseInt(p.box.value, 10) > 0 ? Math.min(parseInt(p.box.value, 10), 180) : Math.round(settings.focus/60);
       startFresh('focus', mins*60); // this session only: the default focus length stays as it is
+      timer.task = p.text.value.trim() || 'Priority ' + (i+1);
+      timer.boxRow = i;
       start();
     });
   });
+  // The row being time-boxed is lit up on the note, while its session runs or waits paused.
+  function markBoxedPriority(){
+    if(!priorityRows) return; // the first render comes before the note is set up
+    priorityRows.forEach(function(p, i){
+      p.row.classList.toggle('boxing', timer.mode === 'focus' && timer.boxRow === i && !!timer.task);
+    });
+  }
 
   /* ---------- resume after a refresh, stay in step with other tabs ---------- */
   var savedTimer = loadJSON(TIMER_KEY, null);
@@ -1684,8 +1762,8 @@
   window.addEventListener('storage', function(e){
     if(e.key === TIMER_KEY) applyTimer(loadJSON(e.key, timer));
     else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); }
-    else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); }
-    else if(e.key === TODOS_KEY) renderPriorities();
+    else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); renderProgress(); }
+    else if(e.key === PRIORITIES_KEY) renderPriorities();
     else if(e.key === BRAIN_DUMP_KEY && !diaryEl.open) pages = loadPages(); // an open diary keeps what you're typing
   });
 
@@ -1693,20 +1771,18 @@
   sizeDust(); seedDust();
   renderClock();
   render();
+  renderProgress();
 
   if(!reduceMotion){ requestAnimationFrame(animate); }
 
   setInterval(renderClock, 1000);
-  setInterval(checkRollover, 30000);
+  setInterval(function(){ checkRollover(); renderProgress(); }, 30000); // a new day empties the tray
 })();
 </script>
 <script>
 (function () {
-  // Our own key: an open Reminder Bell tab, or a tab of an older build of this
-  // page, saves its stale list to the old key every second and would undo checkmarks.
+  // Our own key, not Reminder Bell's: an open Reminder Bell tab saves its stale list to its key every second and would undo checkmarks.
   var STORAGE_KEY = 'lockedInRoom.reminders.v1';
-  var OLD_STORAGE_KEY = 'reminderBell.reminders.v1';
-  var SETTINGS_KEY = 'reminderBell.settings.v1'; // nothing is saved here any more, but older backups carry it
   var listEl = document.getElementById('reminderList');
   var summaryBar = document.getElementById('summaryBar');
   var summaryUpcomingEl = document.getElementById('summaryUpcoming');
@@ -1780,7 +1856,7 @@
 
   function loadReminders() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) {}
     return [
@@ -2173,7 +2249,7 @@
   var takeoverTasksEl = document.getElementById('takeoverTasks');
 
   function noteIsUp(kind) {
-    return !!document.querySelector('#toasts .toast[data-kind="' + kind + '"]');
+    return !!document.querySelector('#pendingNotes .note[data-kind="' + kind + '"]');
   }
 
   function clearTakeoverNotes() {
@@ -2190,7 +2266,7 @@
     document.getElementById('takeoverKind').textContent = kinds.map(function (kind) { return NOTE_KINDS[kind]; }).join(' · ');
     takeoverTasksEl.textContent = '';
     kinds.forEach(function (kind) {
-      document.querySelectorAll('#toasts .toast[data-kind="' + kind + '"] .toast-text').forEach(function (task) {
+      document.querySelectorAll('#pendingNotes .note[data-kind="' + kind + '"] .note-text').forEach(function (task) {
         var item = document.createElement('li');
         item.textContent = task.textContent;
         takeoverTasksEl.appendChild(item);
@@ -2199,35 +2275,39 @@
     if (!takeoverEl.open) takeoverEl.showModal();
   }
 
-  new MutationObserver(syncTakeover).observe(document.getElementById('toasts'), { childList: true });
+  new MutationObserver(syncTakeover).observe(document.getElementById('pendingNotes'), { childList: true });
   // Clearing the notes closes it, for "On it" and Esc alike. Esc is caught as it's pressed: the dialog's close event comes a frame later and would clear a note that arrived in between.
   takeoverEl.addEventListener('cancel', function (e) { e.preventDefault(); clearTakeoverNotes(); });
   document.getElementById('takeoverOkBtn').addEventListener('click', clearTakeoverNotes);
 
   function removeNotes(selector) {
-    document.querySelectorAll('#toasts .toast' + selector).forEach(function (note) { note.remove(); });
+    document.querySelectorAll('#pendingNotes .note' + selector).forEach(function (note) { note.remove(); });
   }
 
   function removeReminderNote(id) {
-    document.querySelectorAll('#toasts .toast').forEach(function (note) { if (note.dataset.id === id) note.remove(); });
+    document.querySelectorAll('#pendingNotes .note').forEach(function (note) { if (note.dataset.id === id) note.remove(); });
   }
 
   document.addEventListener('sessionend', function (e) {
     removeNotes('[data-kind="session"]');
-    showNote('session', e.detail.enteringBreak ? 'Focus session done. Break time: get up and move.' : 'Break over. Ready for the next session.');
+    var d = e.detail;
+    if (!d.enteringBreak) { showNote('session', 'Break over. Ready for the next session.'); return; }
+    var text = 'Focus session done' + (d.task ? ': ' + d.task : '') + '.';
+    if (d.counted) text += ' That\'s ' + d.sessions + ' today (' + d.focused + ').'; // a little reward for the one just finished
+    showNote('session', text + ' Break time: get up and move.');
   });
 
-  // A note is just the text the takeover lists, kept in the hidden #toasts list.
+  // A note is just the text the takeover lists, kept in the hidden #pendingNotes list.
   function showNote(kind, text, id) {
     var note = document.createElement('div');
-    note.className = 'toast';
+    note.className = 'note';
     note.dataset.kind = kind;
     if (id) note.dataset.id = id;
     var msg = document.createElement('div');
-    msg.className = 'toast-text';
+    msg.className = 'note-text';
     msg.textContent = text;
     note.appendChild(msg);
-    document.getElementById('toasts').appendChild(note);
+    document.getElementById('pendingNotes').appendChild(note);
   }
 
   // Both scripts send this.
@@ -2604,34 +2684,39 @@
   }
 
   function isBackupKey(key) {
-    return key.indexOf('lockedInRoom.') === 0 || key === SETTINGS_KEY;
+    return key.indexOf('lockedInRoom.') === 0;
   }
 
   // The lists the page walks through on every load, item by item, so one bad item would break them.
+  // The priorities, and the to-do list they came from in older backups, are the timer script's keys, which this script can't see.
   function listItemsOk(key, value) {
     if (key === STORAGE_KEY) {
       return Array.isArray(value) && value.every(function (r) {
         return r && typeof r.id === 'string' && typeof r.label === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time);
       });
     }
-    if (key === 'lockedInRoom.todos.v1') { // the timer script's TODOS_KEY, which this script can't see
+    if (key === 'lockedInRoom.priorities.v1' || key === 'lockedInRoom.todos.v1') {
       return Array.isArray(value) && value.every(function (t) { return t && typeof t.text === 'string'; });
     }
     return true;
   }
 
   // Refuses anything that could break the page on its next load, since restoring replaces what's saved.
+  // Older backups also carry Reminder Bell's settings key, which nothing reads now, so it's left out.
   function readBackup(parsed) {
     var saved = parsed && parsed.lockedInRoomBackup;
     if (!saved || typeof saved !== 'object') return null;
-    var keys = Object.keys(saved);
+    var keys = Object.keys(saved).filter(function (key) { return key !== 'reminderBell.settings.v1'; });
     var valid = keys.length > 0 && keys.every(function (key) {
       if (!isBackupKey(key) || typeof saved[key] !== 'string') return false;
       try {
         return listItemsOk(key, JSON.parse(saved[key]));
       } catch (e) { return false; }
     });
-    return valid ? saved : null;
+    if (!valid) return null;
+    var kept = {};
+    keys.forEach(function (key) { kept[key] = saved[key]; });
+    return kept;
   }
 
   function fullBackupText() {
