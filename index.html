@@ -455,6 +455,10 @@
   .field-row:last-child { margin-bottom: 0; }
   /* Time + Task: line up at the top so the task box can grow downward */
   #addForm .field-row:first-child { align-items: flex-start; }
+  /* The repeating timer on one line: what to do, how often, Start. */
+  #nudgeForm .field-row { flex-wrap: nowrap; }
+  #nudgeForm .grow { min-width: 0; }
+  #nudgeMinutes { width: 72px; }
 
   .panel-hint {
     color: var(--ink-soft);
@@ -751,29 +755,17 @@
     overflow-wrap: break-word;
   }
 
-  .reminder-meta {
-    display: flex;
-    flex-wrap: wrap;
+  .daily-toggle {
+    display: inline-flex;
+    flex-direction: row; /* the drawer's labels otherwise stack their text over the field */
     align-items: center;
-    gap: 4px 12px;
+    gap: 5px;
     font-size: 12px;
     color: var(--ink-soft);
-    margin-top: 2px;
-  }
-
-  .repeat-toggle {
-    font: inherit;
-    font-size: 12px;
-    color: var(--focus);
-    background: none;
-    border: none;
-    padding: 0;
     cursor: pointer;
-    text-decoration: underline dotted;
-    text-underline-offset: 3px;
   }
 
-  .repeat-toggle:hover { color: var(--brass); }
+  .daily-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--brass); cursor: pointer; }
 
 
   .pill {
@@ -1160,11 +1152,9 @@
         <label class="grow">Remind me to
           <input type="text" id="nudgeLabel" placeholder="e.g. Drink water" maxlength="120" required autocomplete="off">
         </label>
-        <label>Every (minutes)
+        <label>Every (min)
           <input type="number" id="nudgeMinutes" min="1" max="720" step="1" value="20" required>
         </label>
-      </div>
-      <div class="field-row">
         <button type="submit" class="primary-btn" id="nudgeSubmit">Start</button>
       </div>
     </form>
@@ -2070,21 +2060,22 @@
         });
       }
 
-      var meta = document.createElement('div');
-      meta.className = 'reminder-meta';
-      var toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'repeat-toggle';
-      toggle.textContent = r.repeat ? 'Repeats daily — switch to one time' : 'One time — switch to repeat daily';
-      toggle.addEventListener('click', function () {
-        r.repeat = !r.repeat;
+      // A small "Daily" checkbox beside the time: ticked repeats every day, unticked rings once.
+      var daily = document.createElement('label');
+      daily.className = 'daily-toggle';
+      var dailyBox = document.createElement('input');
+      dailyBox.type = 'checkbox';
+      dailyBox.checked = !!r.repeat;
+      dailyBox.setAttribute('aria-label', 'Repeat ' + r.label + ' daily');
+      dailyBox.addEventListener('change', function () {
+        r.repeat = dailyBox.checked;
         r.lastFiredKey = null;
         saveReminders();
         render();
       });
-      meta.appendChild(toggle);
+      daily.appendChild(dailyBox);
+      daily.appendChild(document.createTextNode('Daily'));
       main.appendChild(label);
-      main.appendChild(meta);
 
       var pill = document.createElement('div');
       var key = sortKey(r);
@@ -2152,6 +2143,7 @@
       }
 
       li.appendChild(timePicker.el);
+      li.appendChild(daily);
       li.appendChild(main);
       li.appendChild(pill);
       li.appendChild(actions);
