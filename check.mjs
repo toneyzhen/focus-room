@@ -17,7 +17,7 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'todayKey', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'formatFocused', 'isBackupKey', 'listItemsOk', 'readBackup'];
+const names = ['pad', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'formatFocused', 'validTasks', 'fromOldList', 'isBackupKey', 'listItemsOk', 'readBackup'];
 const rulesAt = (when, stats) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
@@ -112,6 +112,17 @@ assert.equal(afterRollover('2026-10-20T23:00:00', statsOn('2026-10-20', '2026-10
 
 assert.ok(!evening.countsAsSession(599), 'short test timers do not count');
 assert.ok(evening.countsAsSession(600));
+
+// Moving an old to-do list onto the priorities note: nothing may be lost, since the old list is deleted afterwards.
+const note = [{ text: 'Essay', done: true, box: 45 }, { text: 'Gym', done: false, box: null }, { text: '', done: false, box: null }];
+assert.deepEqual(evening.fromOldList(note), { tasks: note, extra: [] }, 'three entries are already the note, kept as they are');
+const longList = ['a', 'b', 'c', 'd', 'e', 'f'].map((text) => ({ text, done: text === 'b' }));
+assert.deepEqual(evening.fromOldList(longList), {
+  tasks: ['a', 'c', 'd'].map((text) => ({ text, done: false, box: null })),
+  extra: ['e', 'f'],
+}, 'the first three open tasks go on the note and the rest to the diary; done ones are dropped');
+assert.deepEqual(evening.fromOldList([]).tasks.map((t) => t.text), ['', '', ''], 'an empty list gives an empty note');
+assert.deepEqual(evening.fromOldList('not a list'), { tasks: [0, 1, 2].map(() => ({ text: '', done: false, box: null })), extra: [] }, 'a broken list gives an empty note');
 
 // The time focused today, in the monitor's taskbar.
 assert.equal(evening.formatFocused(1500), '25m');

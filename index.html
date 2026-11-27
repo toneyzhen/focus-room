@@ -1247,7 +1247,7 @@
     catch(e){ return fallback; }
   }
   function saveJSON(key, val){
-    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ document.dispatchEvent(new Event('savefailed')); }
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ warnSaveFailed(); }
   }
 
   // Our own keys, not the old Lamplight page's ssr_ ones: it reads a short timer as minutes and leaves yesterday's time in the stats.
@@ -1350,12 +1350,12 @@
     var base = timer.running ? (digitsEl.textContent+' · '+MODE_LABELS[timer.mode]) : 'Focus Room';
     document.title = (overdueCount ? '('+overdueCount+') ' : '') + base;
   }
-  // The reminder script sends this; the two scripts share nothing else.
   var overdueCount = 0;
-  document.addEventListener('overduechange', function(e){
-    overdueCount = e.detail;
+  function setOverdueCount(n){
+    if(n === overdueCount) return;
+    overdueCount = n;
     renderTitle();
-  });
+  }
 
   var tickHandle = null;
   function tick(){
@@ -1429,9 +1429,7 @@
     var next = enteringBreak ? 'break' : 'focus';
     startFresh(next, durationFor(next)); // a time box ends back on the default lengths
     if(counted) renderProgress(true);
-    document.dispatchEvent(new CustomEvent('sessionend', { detail: { // the bell script shows it
-      enteringBreak: enteringBreak, task: task, counted: counted, sessions: stats.sessions, focused: formatFocused(stats.focusedSec)
-    } }));
+    showSessionNote(enteringBreak, task, counted);
     flashRing();
     if(enteringBreak){ start(); } else { saveTimer(); render(); }
   }
@@ -1496,7 +1494,7 @@
     timer.total = timer.remaining = totalSec;
     saveTimer();
     render();
-    document.dispatchEvent(new Event('focuslengthchange'));
+    renderPriorities(); // the empty boxes' hint shows the default
   }
   digitsEl.addEventListener('click', startEditDigits);
   digitsEl.addEventListener('keydown', function(e){
@@ -1688,7 +1686,7 @@
       var t = saved[i] || { text:'' };
       if(document.activeElement !== p.text) p.text.value = t.text;
       if(document.activeElement !== p.box) p.box.value = t.box > 0 ? t.box : '';
-      p.box.placeholder = Math.round(settings.focus/60); // what an empty box uses
+      p.box.placeholder = settings.focus % 60 ? formatMMSS(settings.focus) : settings.focus/60; // what an empty box uses, exactly
       setDone(p, !!t.done);
     });
   }
@@ -1698,29 +1696,31 @@
       return { text:p.text.value, done:p.row.classList.contains('done'), box:box > 0 ? box : null };
     }));
   }
-  // Moves them over from the old key once. Three entries are already the note; a longer to-do list from before it
-  // puts its first three open tasks on the note and the rest in the brain dump rather than lose them.
+  // The old list as the note: three entries are already the note; a longer to-do list from before it gives its first three
+  // open tasks to the note and the rest as extra, for the brain dump rather than lost.
+  function fromOldList(old){
+    var tasks = validTasks(old);
+    if(tasks.length === 3) return { tasks:tasks, extra:[] };
+    var open = tasks.filter(function(t){ return !t.done; }).map(function(t){ return t.text; });
+    return {
+      tasks: [0,1,2].map(function(i){ return { text:open[i] || '', done:false, box:null }; }),
+      extra: open.slice(3).filter(function(t){ return t.trim(); })
+    };
+  }
+  // Moves them over from the old key once.
   (function moveOldList(){
     var old = loadJSON(OLD_TODOS_KEY, null);
-    if(old === null || localStorage.getItem(PRIORITIES_KEY) !== null){
-      try{ localStorage.removeItem(OLD_TODOS_KEY); }catch(e){}
-      return;
-    }
-    var tasks = validTasks(old);
-    if(tasks.length !== 3){
-      var open = tasks.filter(function(t){ return !t.done; }).map(function(t){ return t.text; });
-      var extra = open.slice(3).filter(function(t){ return t.trim(); });
-      if(extra.length){
-        pages[0] = (pages[0] ? pages[0] + '\n\n' : '') + 'From the old to-do list:\n' + extra.map(function(t){ return '- ' + t; }).join('\n');
+    if(old !== null && localStorage.getItem(PRIORITIES_KEY) === null){
+      var moved = fromOldList(old);
+      if(moved.extra.length){
+        pages[0] = (pages[0] ? pages[0] + '\n\n' : '') + 'From the old to-do list:\n' + moved.extra.map(function(t){ return '- ' + t; }).join('\n');
         savePages();
       }
-      tasks = [0,1,2].map(function(i){ return { text:open[i] || '', done:false, box:null }; });
+      saveJSON(PRIORITIES_KEY, moved.tasks);
     }
-    saveJSON(PRIORITIES_KEY, tasks);
     try{ localStorage.removeItem(OLD_TODOS_KEY); }catch(e){}
   })();
   renderPriorities();
-  document.addEventListener('focuslengthchange', renderPriorities); // the empty boxes' hint shows the default
   priorityRows.forEach(function(p, i){
     p.text.addEventListener('input', function(){
       if(!p.text.value.trim()){ p.box.value = ''; setDone(p, false); } // a deleted task takes its time box and checkmark with it
@@ -1733,8 +1733,8 @@
     });
     // Time-boxing: a focus session as long as this task's box, started now, replacing any session or break already running.
     p.row.querySelector('.priority-start').addEventListener('click', function(){
-      var mins = parseInt(p.box.value, 10) > 0 ? Math.min(parseInt(p.box.value, 10), 180) : Math.round(settings.focus/60);
-      startFresh('focus', mins*60); // this session only: the default focus length stays as it is
+      var mins = parseInt(p.box.value, 10);
+      startFresh('focus', mins > 0 ? Math.min(mins, 180)*60 : settings.focus); // this session only: the default focus length stays as it is
       timer.task = p.text.value.trim() || 'Priority ' + (i+1);
       timer.boxRow = i;
       start();
@@ -1777,10 +1777,8 @@
 
   setInterval(renderClock, 1000);
   setInterval(function(){ checkRollover(); renderProgress(); }, 30000); // a new day empties the tray
-})();
-</script>
-<script>
-(function () {
+
+  /* ======================== reminders, notifications and settings ======================== */
   // Our own key, not Reminder Bell's: an open Reminder Bell tab saves its stale list to its key every second and would undo checkmarks.
   var STORAGE_KEY = 'lockedInRoom.reminders.v1';
   var listEl = document.getElementById('reminderList');
@@ -1839,13 +1837,13 @@
     editingLabelId = null;
     saveReminders();
     // Pressing a row's button ends the edit. Rebuilding now would replace that button and lose the click.
-    if (pointerDown) document.addEventListener('pointerup', function () { setTimeout(render); }, { once: true });
-    else render();
+    if (pointerDown) document.addEventListener('pointerup', function () { setTimeout(renderReminders); }, { once: true });
+    else renderReminders();
   }
 
   function cancelLabelEdit() {
     editingLabelId = null;
-    render();
+    renderReminders();
   }
 
   // Grow/shrink a textarea to exactly fit its text (no inner scrollbar).
@@ -1865,16 +1863,9 @@
     ];
   }
 
-  function saveReminders() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
-  }
+  function saveReminders() { saveJSON(STORAGE_KEY, reminders); }
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
-  function todayKey() {
-    var d = new Date();
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-  }
 
   function nowHHMM() {
     var d = new Date();
@@ -1961,7 +1952,7 @@
   }
 
   function skipDateFor(time) {
-    return time < nowHHMM() ? todayKey() : null;
+    return time < nowHHMM() ? todayStr() : null;
   }
 
   // Minutes from now until hh:mm today. Positive = later today, negative = already passed today.
@@ -1983,15 +1974,15 @@
   // day rolls over and today's checkmark resets.
   function sortKey(r) {
     // Its time had already passed when it was set, so it means tomorrow, not overdue.
-    if (r.skipDate === todayKey()) return rawMinutesDiff(r.time) + 1440;
+    if (r.skipDate === todayStr()) return rawMinutesDiff(r.time) + 1440;
     // A one-time reminder rings once, so after the day it rang it has nothing left to count down to.
-    if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayKey()) return MISSED;
+    if (!r.repeat && r.lastFiredKey === 'once' && r.firedDate !== todayStr()) return MISSED;
     return rawMinutesDiff(r.time);
   }
 
   // A reminder's time is when the task starts. It only falls behind once the next task's start time arrives.
   function nextStartTime(r, list) {
-    var today = todayKey(), now = nowHHMM(), found = null;
+    var today = todayStr(), now = nowHHMM(), found = null;
     list.forEach(function (o) {
       if (o.time <= r.time || o.time > now || (found && o.time >= found)) return;
       if (o.skipDate === today || sortKey(o) === MISSED) return;
@@ -2030,10 +2021,10 @@
 
   function setCompleted(r, completed) {
     r.completed = completed;
-    r.completedDateKey = completed ? todayKey() : null;
+    r.completedDateKey = completed ? todayStr() : null;
     if (completed) removeReminderNote(r.id);
     saveReminders();
-    render();
+    renderReminders();
     updateNextReminder();
   }
 
@@ -2044,7 +2035,7 @@
     }
     var upcoming = 0, overdue = 0, done = 0;
     reminders.forEach(function (r) {
-      if (r.completed) { if (r.completedDateKey === todayKey()) done++; return; }
+      if (r.completed) { if (r.completedDateKey === todayStr()) done++; return; }
       if (isOverdue(r, reminders)) overdue++; else upcoming++;
     });
     summaryUpcomingEl.textContent = upcoming;
@@ -2053,7 +2044,7 @@
     summaryBar.hidden = false;
   }
 
-  function render() {
+  function renderReminders() {
     lastRenderedMinute = nowHHMM();
 
     // The rows get replaced below, so keyboard users need their place put back.
@@ -2098,7 +2089,7 @@
         r.lastFiredKey = null;
         if (!r.repeat) { r.completed = false; }
         saveReminders();
-        render();
+        renderReminders();
       }
       timePicker.hourSel.addEventListener('change', commitRowTime);
       timePicker.minSel.addEventListener('change', commitRowTime);
@@ -2130,9 +2121,9 @@
         label.tabIndex = 0;
         label.setAttribute('role', 'button');
         label.setAttribute('aria-label', 'Edit ' + r.label);
-        label.addEventListener('click', function () { editingLabelId = r.id; render(); });
+        label.addEventListener('click', function () { editingLabelId = r.id; renderReminders(); });
         label.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editingLabelId = r.id; render(); }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editingLabelId = r.id; renderReminders(); }
         });
       }
 
@@ -2147,7 +2138,7 @@
         r.repeat = dailyBox.checked;
         r.lastFiredKey = null;
         saveReminders();
-        render();
+        renderReminders();
       });
       daily.appendChild(dailyBox);
       daily.appendChild(document.createTextNode('Daily'));
@@ -2186,7 +2177,7 @@
           removeReminderNote(r.id);
           reminders = reminders.filter(function (x) { return x.id !== r.id; });
           saveReminders();
-          render();
+          renderReminders();
         });
 
         var cancelDel = document.createElement('button');
@@ -2195,7 +2186,7 @@
         cancelDel.textContent = 'Cancel';
         cancelDel.addEventListener('click', function () {
           cancelPendingDelete();
-          render();
+          renderReminders();
         });
 
         actions.appendChild(confirmDel);
@@ -2211,9 +2202,9 @@
           if (pendingDeleteTimer) clearTimeout(pendingDeleteTimer);
           pendingDeleteTimer = setTimeout(function () {
             cancelPendingDelete();
-            if (!listIsBusy()) render(); // otherwise the next rebuild puts the × back
+            if (!listIsBusy()) renderReminders(); // otherwise the next rebuild puts the × back
           }, 4000);
-          render();
+          renderReminders();
         });
         actions.appendChild(del);
       }
@@ -2276,6 +2267,7 @@
   }
 
   new MutationObserver(syncTakeover).observe(document.getElementById('pendingNotes'), { childList: true });
+  syncTakeover(); // notes added before this point
   // Clearing the notes closes it, for "On it" and Esc alike. Esc is caught as it's pressed: the dialog's close event comes a frame later and would clear a note that arrived in between.
   takeoverEl.addEventListener('cancel', function (e) { e.preventDefault(); clearTakeoverNotes(); });
   document.getElementById('takeoverOkBtn').addEventListener('click', clearTakeoverNotes);
@@ -2288,14 +2280,13 @@
     document.querySelectorAll('#pendingNotes .note').forEach(function (note) { if (note.dataset.id === id) note.remove(); });
   }
 
-  document.addEventListener('sessionend', function (e) {
+  function showSessionNote(enteringBreak, task, counted) {
     removeNotes('[data-kind="session"]');
-    var d = e.detail;
-    if (!d.enteringBreak) { showNote('session', 'Break over. Ready for the next session.'); return; }
-    var text = 'Focus session done' + (d.task ? ': ' + d.task : '') + '.';
-    if (d.counted) text += ' That\'s ' + d.sessions + ' today (' + d.focused + ').'; // a little reward for the one just finished
+    if (!enteringBreak) { showNote('session', 'Break over. Ready for the next session.'); return; }
+    var text = 'Focus session done' + (task ? ': ' + task : '') + '.';
+    if (counted) text += ' That\'s ' + stats.sessions + ' today (' + formatFocused(stats.focusedSec) + ').'; // a little reward for the one just finished
     showNote('session', text + ' Break time: get up and move.');
-  });
+  }
 
   // A note is just the text the takeover lists, kept in the hidden #pendingNotes list.
   function showNote(kind, text, id) {
@@ -2310,10 +2301,12 @@
     document.getElementById('pendingNotes').appendChild(note);
   }
 
-  // Both scripts send this.
-  document.addEventListener('savefailed', function () {
+  var warnedSaveFailed = false;
+  function warnSaveFailed() {
+    if (warnedSaveFailed) return;
+    warnedSaveFailed = true;
     showNote('warning', "Couldn't save. Changes will be lost when this page closes. Check that this browser allows site data.");
-  }, { once: true });
+  }
 
   function fireReminder(r) {
     showNote('reminder', r.label, r.id);
@@ -2327,9 +2320,7 @@
     return { on: false, label: '', minutes: 20, nextAt: 0 };
   }
 
-  function saveNudge() {
-    try { localStorage.setItem(NUDGE_KEY, JSON.stringify(nudge)); } catch (e) { document.dispatchEvent(new Event('savefailed')); }
-  }
+  function saveNudge() { saveJSON(NUDGE_KEY, nudge); }
 
   // Stays on the same every-N-minutes beat after sleep or a throttled tab, ringing once for whatever was missed.
   function nextNudgeAt(nextAt, everyMs, now) {
@@ -2368,10 +2359,10 @@
     return time === hhmm || (time > since && time < hhmm);
   }
 
-  function tick() {
+  function checkReminders() {
     var now = new Date();
     var hhmm = pad(now.getHours()) + ':' + pad(now.getMinutes());
-    var tKey = todayKey();
+    var tKey = todayStr();
     var changed = false;
     // First check rings only this minute, since the page may have been closed on purpose. A new day checks from midnight.
     var firstCheck = lastCheckDay === null;
@@ -2415,7 +2406,7 @@
     // loses clicks and keyboard focus. Rebuilding would also blow away an
     // in-progress edit (lost keystrokes, lost focus, a closed dropdown) — skip
     // it while a label is being typed or a time picker is open.
-    if (!drawer.hidden && !listIsBusy() && hhmm !== lastRenderedMinute) render();
+    if (!drawer.hidden && !listIsBusy() && hhmm !== lastRenderedMinute) renderReminders();
     updateNextReminder();
   }
 
@@ -2433,7 +2424,7 @@
       var old = current.filter(function (x) { return x.id === fresh.id; })[0];
       return old ? Object.assign(old, fresh) : fresh;
     });
-    if (!drawer.hidden && !listIsBusy()) render();
+    if (!drawer.hidden && !listIsBusy()) renderReminders();
     updateNextReminder();
   });
 
@@ -2451,7 +2442,7 @@
     function byStart(a, b) { return sortKey(a) - sortKey(b); }
     overdue.sort(byStart);
     started.sort(byStart);
-    document.dispatchEvent(new CustomEvent('overduechange', { detail: overdue.length }));
+    setOverdueCount(overdue.length);
     reminderStatusEl.textContent = overdue.length || started.length || upcoming ? '' : 'Nothing coming up';
 
     // This runs every second, and rebuilding the checkboxes that often would lose clicks and focus.
@@ -2566,7 +2557,7 @@
   function setDrawer(open) {
     drawer.hidden = !open;
     drawerToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) { render(); drawerCloseBtn.focus(); } else { drawerToggle.focus(); }
+    if (open) { renderReminders(); drawerCloseBtn.focus(); } else { drawerToggle.focus(); }
   }
 
   drawerToggle.addEventListener('click', function () { setDrawer(drawer.hidden); });
@@ -2587,8 +2578,8 @@
   });
   settingsDialog.addEventListener('close', function () { settingsBtn.focus(); });
   document.addEventListener('keydown', function (e) {
-    // defaultPrevented: Esc was already used to cancel an inline edit.
-    if (e.key !== 'Escape' || e.defaultPrevented || settingsDialog.open) return;
+    // defaultPrevented: Esc was already used to cancel an inline edit. An open dialog (a notification, the diary, settings) takes Esc for itself.
+    if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open]')) return;
     if (!drawer.hidden) setDrawer(false);
   });
 
@@ -2645,7 +2636,7 @@
       completedDateKey: null
     });
     saveReminders();
-    render();
+    renderReminders();
     form.reset();
     fitTextarea(labelInput);
     addTimePicker.setValue(nowHHMM());
@@ -2655,9 +2646,9 @@
   // Start the core app now — list, clock, firing — independent of the
   // export/import wiring below, so a problem there can never leave the
   // list empty or the clock frozen.
-  render();
-  tick();
-  setInterval(tick, 1000);
+  renderReminders();
+  checkReminders();
+  setInterval(checkReminders, 1000);
 
   // --- Backup (in the settings window) ---
 
@@ -2683,12 +2674,13 @@
     }
   }
 
+  // The last-backup date belongs to this browser, not to what's backed up: restored, it would show an older date than the file's own.
   function isBackupKey(key) {
-    return key.indexOf('lockedInRoom.') === 0;
+    return key.indexOf('lockedInRoom.') === 0 && key !== 'lockedInRoom.lastBackup.v1';
   }
 
   // The lists the page walks through on every load, item by item, so one bad item would break them.
-  // The priorities, and the to-do list they came from in older backups, are the timer script's keys, which this script can't see.
+  // Older backups carry the to-do list the priorities came from.
   function listItemsOk(key, value) {
     if (key === STORAGE_KEY) {
       return Array.isArray(value) && value.every(function (r) {
@@ -2702,11 +2694,11 @@
   }
 
   // Refuses anything that could break the page on its next load, since restoring replaces what's saved.
-  // Older backups also carry Reminder Bell's settings key, which nothing reads now, so it's left out.
+  // Older backups also carry Reminder Bell's settings and the last-backup date, which are left out.
   function readBackup(parsed) {
     var saved = parsed && parsed.lockedInRoomBackup;
     if (!saved || typeof saved !== 'object') return null;
-    var keys = Object.keys(saved).filter(function (key) { return key !== 'reminderBell.settings.v1'; });
+    var keys = Object.keys(saved).filter(function (key) { return key !== 'reminderBell.settings.v1' && key !== 'lockedInRoom.lastBackup.v1'; });
     var valid = keys.length > 0 && keys.every(function (key) {
       if (!isBackupKey(key) || typeof saved[key] !== 'string') return false;
       try {
@@ -2753,9 +2745,9 @@
     showLastBackup();
   });
   document.getElementById('roomBackupDownload').addEventListener('click', function () {
-    downloadJson(fullBackupText(), 'focus-room-backup-' + todayKey() + '.json', roomBackupStatus);
+    downloadJson(fullBackupText(), 'focus-room-backup-' + todayStr() + '.json', roomBackupStatus);
     if (roomBackupStatus.classList.contains('success')) {
-      try { localStorage.setItem(LAST_BACKUP_KEY, todayKey()); } catch (e) {}
+      try { localStorage.setItem(LAST_BACKUP_KEY, todayStr()); } catch (e) {}
       showLastBackup();
     }
   });
