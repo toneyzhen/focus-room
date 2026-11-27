@@ -1,4 +1,4 @@
-// Run with `node check.mjs`. Two apps share this page's ids, so catch clashes and dangling lookups.
+// Run with `node check.mjs`. Catches duplicate ids and lookups of ids that don't exist, then tests the page's rules.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -17,7 +17,7 @@ const source = (name) => {
   assert.ok(found, `function ${name} not found in index.html`);
   return found[0];
 };
-const names = ['pad', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'formatFocused', 'validTasks', 'fromOldList', 'isBackupKey', 'listItemsOk', 'readBackup'];
+const names = ['pad', 'nowHHMM', 'skipDateFor', 'rawMinutesDiff', 'sortKey', 'nextStartTime', 'isOverdue', 'describeReminder', 'describeCountdown', 'isDue', 'nextNudgeAt', 'parseDuration', 'todayStr', 'daysBetween', 'updateStreak', 'checkRollover', 'countsAsSession', 'formatFocused', 'validTasks', 'fromOldList', 'leftOutOfBackups', 'isBackupKey', 'listItemsOk', 'readBackup'];
 const rulesAt = (when, stats) => {
   class FakeDate extends Date {
     constructor(...args) { args.length ? super(...args) : super(when); }
@@ -136,6 +136,9 @@ const good = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.priorities.v1': 
 assert.deepEqual(evening.readBackup(backupOf(good)), good);
 const older = { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]', 'reminderBell.settings.v1': '{}' };
 assert.deepEqual(evening.readBackup(backupOf(older)), { 'lockedInRoom.reminders.v1': '[]', 'lockedInRoom.todos.v1': '[{"text":"a"}]' }, "an older backup still restores, without Reminder Bell's settings");
+const withTimer = { ...good, 'lockedInRoom.timer.v1': '{"mode":"focus","running":true,"endAt":1}', 'lockedInRoom.lastBackup.v1': '"2026-10-20"' };
+assert.deepEqual(evening.readBackup(backupOf(withTimer)), good, "a running timer isn't restored, so an old session can't start again or count twice");
+assert.ok(!evening.isBackupKey('lockedInRoom.timer.v1') && evening.isBackupKey('lockedInRoom.stats.v1'), 'the timer is not backed up; the stats are');
 assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.priorities.v1': '[{"done":true}]' })), null, 'a priority with no text');
 assert.equal(evening.readBackup(backupOf({ 'someone.elses.key': '1' })), null, 'an unknown key');
 assert.equal(evening.readBackup(backupOf({ 'lockedInRoom.todos.v1': 'not json' })), null, 'broken JSON');

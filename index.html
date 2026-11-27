@@ -1252,14 +1252,10 @@
 
   // Our own keys, not the old Lamplight page's ssr_ ones: it reads a short timer as minutes and leaves yesterday's time in the stats.
   var TIMER_SETTINGS_KEY = 'lockedInRoom.timerSettings.v1', STATS_KEY = 'lockedInRoom.stats.v1', TIMER_KEY = 'lockedInRoom.timer.v1';
-  // Saved by features since removed (rain and fire, the daily goal, the hourly chime), so nothing reads them.
-  ['rainVolume', 'fireVolume', 'goal', 'lastHourlyChime'].forEach(function(name){
-    try{ localStorage.removeItem('lockedInRoom.' + name + '.v1'); }catch(e){}
-  });
 
   function todayStr(d){
     d = d || new Date();
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   }
   function daysBetween(aStr, bStr){
     if(!aStr || !bStr) return Infinity;
@@ -1317,8 +1313,7 @@
     boxRow: null // and which of the three it is
   };
 
-  function durationFor(mode){ return settings[mode]; }
-  function sessionLength(){ return timer.total || durationFor(timer.mode); } // timers saved before time boxes have no total
+  function sessionLength(){ return timer.total || settings[timer.mode]; } // timers saved before time boxes have no total
   function startFresh(mode, seconds){ // a new session or break, not yet running
     clearInterval(tickHandle);
     timer.running = false;
@@ -1329,7 +1324,7 @@
   }
   function formatMMSS(totalSec){
     var m = Math.floor(totalSec/60), s = totalSec%60;
-    return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    return pad(m)+':'+pad(s);
   }
 
   function render(){
@@ -1387,7 +1382,7 @@
     render();
   }
   function reset(){ // back to the default length, even after a time box
-    startFresh(timer.mode, durationFor(timer.mode));
+    startFresh(timer.mode, settings[timer.mode]);
     saveTimer();
     render();
   }
@@ -1427,7 +1422,7 @@
     var task = timer.task;
     var counted = enteringBreak && creditSession(sessionLength());
     var next = enteringBreak ? 'break' : 'focus';
-    startFresh(next, durationFor(next)); // a time box ends back on the default lengths
+    startFresh(next, settings[next]); // a time box ends back on the default lengths
     if(counted) renderProgress(true);
     showSessionNote(enteringBreak, task, counted);
     flashRing();
@@ -1435,7 +1430,7 @@
   }
   function skipBreak(){
     if(timer.mode === 'focus') return;
-    startFresh('focus', durationFor('focus'));
+    startFresh('focus', settings.focus);
     saveTimer();
     render();
   }
@@ -1515,7 +1510,7 @@
     var h = d.getHours(), m = d.getMinutes();
     var suffix = h >= 12 ? 'PM' : 'AM';
     var h12 = h % 12; if(h12 === 0) h12 = 12;
-    clockTime.textContent = h12+':'+String(m).padStart(2,'0')+' '+suffix;
+    clockTime.textContent = h12+':'+pad(m)+' '+suffix;
     clockDate.textContent = WEEKDAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate();
   }
 
@@ -1525,7 +1520,7 @@
   var progressTextEl = document.getElementById('progressText');
   function formatFocused(seconds){
     var mins = Math.round(seconds/60), h = Math.floor(mins/60);
-    return h ? h+'h '+String(mins%60).padStart(2,'0')+'m' : mins+'m';
+    return h ? h+'h '+pad(mins%60)+'m' : mins+'m';
   }
   function renderProgress(justEarned){
     var done = stats.sessions;
@@ -1690,10 +1685,13 @@
       setDone(p, !!t.done);
     });
   }
+  function boxMinutes(p){ // what ▶ will run: 1 to 180 minutes, or null for the default
+    var mins = parseInt(p.box.value, 10);
+    return mins > 0 ? Math.min(mins, 180) : null;
+  }
   function savePriorities(){
     saveJSON(PRIORITIES_KEY, priorityRows.map(function(p){
-      var box = parseInt(p.box.value, 10);
-      return { text:p.text.value, done:p.row.classList.contains('done'), box:box > 0 ? box : null };
+      return { text:p.text.value, done:p.row.classList.contains('done'), box:boxMinutes(p) };
     }));
   }
   // The old list as the note: three entries are already the note; a longer to-do list from before it gives its first three
@@ -1727,14 +1725,19 @@
       savePriorities();
     });
     p.box.addEventListener('input', savePriorities);
+    p.box.addEventListener('change', function(){ // once you're done typing, the box shows what will run
+      var mins = boxMinutes(p);
+      p.box.value = mins || '';
+    });
     p.done.addEventListener('click', function(){ // crosses it off, or back on
       setDone(p, !p.row.classList.contains('done'));
       savePriorities();
     });
     // Time-boxing: a focus session as long as this task's box, started now, replacing any session or break already running.
     p.row.querySelector('.priority-start').addEventListener('click', function(){
-      var mins = parseInt(p.box.value, 10);
-      startFresh('focus', mins > 0 ? Math.min(mins, 180)*60 : settings.focus); // this session only: the default focus length stays as it is
+      var mins = boxMinutes(p);
+      p.box.value = mins || '';
+      startFresh('focus', mins ? mins*60 : settings.focus); // this session only: the default focus length stays as it is
       timer.task = p.text.value.trim() || 'Priority ' + (i+1);
       timer.boxRow = i;
       start();
@@ -1742,7 +1745,6 @@
   });
   // The row being time-boxed is lit up on the note, while its session runs or waits paused.
   function markBoxedPriority(){
-    if(!priorityRows) return; // the first render comes before the note is set up
     priorityRows.forEach(function(p, i){
       p.row.classList.toggle('boxing', timer.mode === 'focus' && timer.boxRow === i && !!timer.task);
     });
@@ -1761,7 +1763,7 @@
   }
   window.addEventListener('storage', function(e){
     if(e.key === TIMER_KEY) applyTimer(loadJSON(e.key, timer));
-    else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); }
+    else if(e.key === TIMER_SETTINGS_KEY){ settings = loadJSON(e.key, settings); render(); renderPriorities(); }
     else if(e.key === STATS_KEY){ stats = loadJSON(e.key, stats); renderProgress(); }
     else if(e.key === PRIORITIES_KEY) renderPriorities();
     else if(e.key === BRAIN_DUMP_KEY && !diaryEl.open) pages = loadPages(); // an open diary keeps what you're typing
@@ -2308,10 +2310,6 @@
     showNote('warning', "Couldn't save. Changes will be lost when this page closes. Check that this browser allows site data.");
   }
 
-  function fireReminder(r) {
-    showNote('reminder', r.label, r.id);
-  }
-
   function loadNudge() {
     try {
       var saved = JSON.parse(localStorage.getItem(NUDGE_KEY));
@@ -2360,8 +2358,7 @@
   }
 
   function checkReminders() {
-    var now = new Date();
-    var hhmm = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    var hhmm = nowHHMM();
     var tKey = todayStr();
     var changed = false;
     // First check rings only this minute, since the page may have been closed on purpose. A new day checks from midnight.
@@ -2386,7 +2383,7 @@
       r.lastFiredKey = fireKey;
       r.firedDate = tKey;
       changed = true;
-      fireReminder(r);
+      showNote('reminder', r.label, r.id);
     });
 
     if (nudge.on && Date.now() >= nudge.nextAt) {
@@ -2674,9 +2671,13 @@
     }
   }
 
-  // The last-backup date belongs to this browser, not to what's backed up: restored, it would show an older date than the file's own.
+  // These belong to this browser right now, not to what's backed up. Restored, the last-backup date would show an older date than the file's own,
+  // and a running timer would start an old session again, or count it a second time once it had ended.
+  function leftOutOfBackups(key) {
+    return key === 'lockedInRoom.lastBackup.v1' || key === 'lockedInRoom.timer.v1';
+  }
   function isBackupKey(key) {
-    return key.indexOf('lockedInRoom.') === 0 && key !== 'lockedInRoom.lastBackup.v1';
+    return key.indexOf('lockedInRoom.') === 0 && !leftOutOfBackups(key);
   }
 
   // The lists the page walks through on every load, item by item, so one bad item would break them.
@@ -2694,11 +2695,11 @@
   }
 
   // Refuses anything that could break the page on its next load, since restoring replaces what's saved.
-  // Older backups also carry Reminder Bell's settings and the last-backup date, which are left out.
+  // Older backups also carry Reminder Bell's settings, the last-backup date and the timer, which are left out.
   function readBackup(parsed) {
     var saved = parsed && parsed.lockedInRoomBackup;
     if (!saved || typeof saved !== 'object') return null;
-    var keys = Object.keys(saved).filter(function (key) { return key !== 'reminderBell.settings.v1' && key !== 'lockedInRoom.lastBackup.v1'; });
+    var keys = Object.keys(saved).filter(function (key) { return key !== 'reminderBell.settings.v1' && !leftOutOfBackups(key); });
     var valid = keys.length > 0 && keys.every(function (key) {
       if (!isBackupKey(key) || typeof saved[key] !== 'string') return false;
       try {
