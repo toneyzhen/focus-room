@@ -1278,15 +1278,7 @@
   var stats = loadJSON(STATS_KEY, null);
   if(!stats){ stats = { date: todayStr(), focusedSec:0, sessions:0, streak:0, lastActiveDate:null }; }
   else if(typeof stats.focusedSec !== 'number'){ stats.focusedSec = Math.round((stats.focusedMin||0)*60); delete stats.focusedMin; }
-  (function reconcileStats(){
-    var today = todayStr();
-    if(stats.date !== today){ stats.date = today; stats.focusedSec = 0; stats.sessions = 0; }
-    if(stats.lastActiveDate){
-      var gap = daysBetween(stats.lastActiveDate, today);
-      if(gap > 1) stats.streak = 0;
-    }
-    saveJSON(STATS_KEY, stats);
-  })();
+  checkRollover(); // a new day since the page was last open
 
   /* ---------- DOM refs ---------- */
   var digitsEl = document.getElementById('digits');
